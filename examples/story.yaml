@@ -1,0 +1,152 @@
+title: "Interactive Story Demo"
+description: "A demonstration of VN Compiler's input system and game state management"
+
+variables:
+  playerName: ""
+  favoriteColor: ""
+  relationship: 0
+  hasMetFriend: false
+
+assets:
+  - key: "character"
+    url: "character.png"
+    type: "image"
+    description: "Hero character portrait"
+  
+  - key: "forest_bg"
+    url: "forest.jpg"
+    type: "image"
+    description: "Mystical forest background"
+  
+  - key: "click_sound"
+    url: "click.wav"
+    type: "audio"
+    description: "UI click sound effect"
+  
+  - key: "forest_music"
+    url: "music.mp3"
+    type: "audio"
+    description: "Ambient forest music"
+  
+  - key: "magic_video"
+    url: "https://sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4"
+    type: "video"
+    description: "Magical transformation sequence"
+
+styles:
+  theme: "modern"
+
+scenes:
+  intro:
+    - "Welcome to the Interactive Story Demo!"
+    - "This showcases the improved input helper system."
+    - "{{input \"playerName\" \"What's your name?\" \"text\"}}"
+    - "Hello, {{playerName}}! It's great to meet you."
+    - "{{playAudio \"forest_music\" gameAssets true true}}"
+    - "{{playVideo \"magic_video\" gameAssets true false}}"
+    - "{{showImage \"forest_bg\" gameAssets \"vn-background\"}}"
+    - text: "Ready to continue?"
+      choices:
+        - text: "Yes, let's go!"
+          goto: preferences
+        - text: "Tell me more about this demo"
+          goto: about
+
+  about:
+    - "This demo shows off several features:"
+    - "• Interactive input elements that sync with game state"
+    - "• Multiple input types (text, select, checkbox, number)"
+    - "• Scene navigation with choices and goto statements"
+    - "• Real-time variable interpolation"
+    - text: "Now let's try it out!"
+      choices:
+        - text: "Start the demo"
+          goto: preferences
+
+  preferences:
+    - "Now, let's learn more about you, {{playerName}}."
+    - "{{input \"favoriteColor\" \"What's your favorite color?\" \"select\" \"Red,Blue,Green,Purple,Yellow,Orange\"}}"
+    - "{{favoriteColor}} is a wonderful choice!"
+    - "{{input \"hasMetFriend\" \"Have we met before?\" \"checkbox\"}}"
+    - text: "Great! Now let's begin the story..."
+      choices:
+        - text: "Continue to the story"
+          goto: story
+
+  story:
+    - speaker: "Narrator"
+      say: "The story begins in a mystical forest..."
+    - "As {{playerName}} walks through the trees, the {{favoriteColor}} leaves rustle overhead."
+    - speaker: "Mysterious Voice"
+      say: "Who dares enter my domain?"
+    - "{{input \"relationship\" \"How do you respond? (1=Friendly, 5=Hostile)\" \"number\"}}"
+    - text: "What happens next depends on your response..."
+      choices:
+        - text: "Continue the story"
+          goto: forest_encounter
+
+  forest_encounter:
+    - if: "lte relationship 2"
+      then:
+        - speaker: "Mysterious Voice"
+          say: "Your peaceful approach is appreciated, traveler."
+        - "The voice belongs to a wise forest spirit who offers guidance."
+        - goto: friendly_path
+      else:
+        - speaker: "Mysterious Voice"
+          say: "Your hostility disturbs the ancient peace of this place."
+        - "Dark shadows begin to gather around you."
+        - goto: hostile_path
+
+  friendly_path:
+    - speaker: "Forest Spirit"
+      say: "Welcome, {{playerName}}. I sense good intentions in you."
+    - "The spirit shares ancient wisdom about the forest."
+    - "You feel a warm glow as {{favoriteColor}} light surrounds you."
+    - text: "This peaceful encounter concludes your journey."
+      choices:
+        - text: "Thank the spirit and leave"
+          goto: good_ending
+
+  hostile_path:
+    - speaker: "Shadow"
+      say: "So be it, {{playerName}}. Face the consequences of your actions."
+    - "The forest turns dark and unwelcoming."
+    - "You realize your hostile approach has backfired."
+    - text: "Perhaps there's still time to change your approach?"
+      choices:
+        - text: "Apologize and try to make peace"
+          goto: redemption
+        - text: "Stand your ground"
+          goto: bad_ending
+
+  redemption:
+    - "You swallow your pride and offer a sincere apology."
+    - speaker: "Forest Spirit"
+      say: "Wisdom can come from recognizing one's mistakes, {{playerName}}."
+    - "The spirit appreciates your growth and offers a second chance."
+    - goto: neutral_ending
+
+  good_ending:
+    - speaker: "Narrator"
+      say: "Congratulations! Your peaceful approach led to the best outcome."
+    - "{{playerName}}, your story concludes with a relationship level of {{relationship}}."
+    - "You chose {{favoriteColor}} as your favorite color, and the spirit blessed you with its light."
+    - "{{hasMetFriend}}"
+    - "Thank you for playing this interactive VN Compiler demo!"
+
+  neutral_ending:
+    - speaker: "Narrator"
+      say: "Your journey had some bumps, but you learned and grew."
+    - "{{playerName}}, your story concludes with a relationship level of {{relationship}}."
+    - "Through reflection, you discovered that {{favoriteColor}} represents your inner wisdom."
+    - "{{hasMetFriend}}"
+    - "Thank you for playing this interactive VN Compiler demo!"
+
+  bad_ending:
+    - speaker: "Narrator"
+      say: "Your stubborn approach led to a darker conclusion."
+    - "{{playerName}}, your story concludes with a relationship level of {{relationship}}."
+    - "The {{favoriteColor}} light you once loved now seems distant."
+    - "{{hasMetFriend}}"
+    - "Perhaps next time, try a different approach... Thank you for playing!"

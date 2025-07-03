@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{VN_TITLE}}</title>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?display=swap&family=Be+Vietnam+Pro:wght@400;500;700;900&family=Noto+Sans:wght@400;500;700;900">
+    <style>{{BUNDLED_CSS}}</style>
+    <script type="importmap">
+        {
+            "imports": {
+                "vn-engine": "https://esm.sh/vn-engine@1.1.1",
+                "handlebars": "https://esm.sh/handlebars@4.7.7",
+                "js-yaml": "https://esm.sh/js-yaml@4.1.0"
+            }
+        }
+    </script>
+</head>
+<body>
+    <!-- Main App Container -->
+    <div class="vn-app" style="font-family: 'Be Vietnam Pro', 'Noto Sans', sans-serif;">
+        <!-- Loading Screen -->
+        <div id="vn-loading" class="vn-loading">
+            <div class="vn-screen">
+                <div class="vn-content-container vn-content-narrow">
+                    <div class="vn-title-large">Loading...</div>
+                    <div class="vn-progress-container">
+                        <div class="vn-progress-bar">
+                            <div class="vn-progress-fill" style="width: 50%;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Error Screen -->
+        <div id="vn-error" class="vn-error" style="display: none;">
+            <div class="vn-screen">
+                <div class="vn-content-container vn-content-narrow">
+                    <div class="vn-title-large">Error</div>
+                    <div class="vn-text">Something went wrong. Please try again.</div>
+                    <div class="vn-button-container">
+                        <button class="vn-button vn-button-primary vn-button-large">
+                            <span>Retry</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Menu -->
+        <div id="vn-main-menu" class="vn-main-menu" style="display: none;">
+            <div class="vn-screen">
+                <div class="vn-content-container vn-content-narrow">
+                    <div class="vn-title-large">{{VN_TITLE}}</div>
+                    <div class="vn-menu-buttons">
+                        <button class="vn-button vn-button-primary vn-button-large">
+                            <span>Start Game</span>
+                        </button>
+                        <button class="vn-button vn-button-secondary vn-button-large">
+                            <span>Load Game</span>
+                        </button>
+                        <button class="vn-button vn-button-secondary vn-button-large">
+                            <span>Settings</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Game Screen -->
+        <div id="vn-game" class="vn-game" style="display: none;">
+            <!-- Game Header -->
+            <header class="vn-game-header">
+                <div class="vn-header-content">
+                    <div class="vn-header-brand">
+                        <div class="vn-header-icon">
+                            <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path fill-rule="evenodd" clip-rule="evenodd" d="M24 4H6V17.3333V30.6667H24V44H42V30.6667V17.3333H24V4Z" fill="currentColor"></path>
+                            </svg>
+                        </div>
+                        <h2 class="vn-header-title">{{VN_TITLE}}</h2>
+                    </div>
+                    <div class="vn-header-controls">
+                        <div class="vn-header-nav">
+                            <button class="vn-header-button" id="vn-help">Help</button>
+                        </div>
+                        <button class="vn-header-settings" id="vn-settings">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" fill="currentColor" viewBox="0 0 256 256">
+                                <path d="M128,80a48,48,0,1,0,48,48A48.05,48.05,0,0,0,128,80Zm0,80a32,32,0,1,1,32-32A32,32,0,0,1,128,160Zm88-29.84q.06-2.16,0-4.32l14.92-18.64a8,8,0,0,0,1.48-7.06,107.21,107.21,0,0,0-10.88-26.25,8,8,0,0,0-6-3.93l-23.72-2.64q-1.48-1.56-3-3L186,40.54a8,8,0,0,0-3.94-6,107.71,107.71,0,0,0-26.25-10.87,8,8,0,0,0-7.06,1.49L130.16,40Q128,40,125.84,40L107.2,25.11a8,8,0,0,0-7.06-1.48A107.6,107.6,0,0,0,73.89,34.51a8,8,0,0,0-3.93,6L67.32,64.27q-1.56,1.49-3,3L40.54,70a8,8,0,0,0-6,3.94,107.71,107.71,0,0,0-10.87,26.25,8,8,0,0,0,1.49,7.06L40,125.84Q40,128,40,130.16L25.11,148.8a8,8,0,0,0-1.48,7.06,107.21,107.21,0,0,0,10.88,26.25,8,8,0,0,0,6,3.93l23.72,2.64q1.49,1.56,3,3L70,215.46a8,8,0,0,0,3.94,6,107.71,107.71,0,0,0,26.25,10.87,8,8,0,0,0,7.06-1.49L125.84,216q2.16.06,4.32,0l18.64,14.92a8,8,0,0,0,7.06,1.48,107.21,107.21,0,0,0,26.25-10.88,8,8,0,0,0,3.93-6l2.64-23.72q1.56-1.48,3-3L215.46,186a8,8,0,0,0,6-3.94,107.71,107.71,0,0,0,10.87-26.25,8,8,0,0,0-1.49-7.06Zm-16.1-6.5a73.93,73.93,0,0,1,0,8.68,8,8,0,0,0,1.74,5.48l14.19,17.73a91.57,91.57,0,0,1-6.23,15L187,173.11a8,8,0,0,0-5.1,2.64,74.11,74.11,0,0,1-6.14,6.14,8,8,0,0,0-2.64,5.1l-2.51,22.58a91.32,91.32,0,0,1-15,6.23l-17.74-14.19a8,8,0,0,0-5-1.75h-.48a73.93,73.93,0,0,1-8.68,0,8,8,0,0,0-5.48,1.74L100.45,215.8a91.57,91.57,0,0,1-15-6.23L82.89,187a8,8,0,0,0-2.64-5.1,74.11,74.11,0,0,1-6.14-6.14,8,8,0,0,0-5.1-2.64L46.43,170.6a91.32,91.32,0,0,1-6.23-15l14.19-17.74a8,8,0,0,0,1.74-5.48,73.93,73.93,0,0,1,0-8.68,8,8,0,0,0-1.74-5.48L40.2,100.45a91.57,91.57,0,0,1,6.23-15L69,82.89a8,8,0,0,0,5.1-2.64,74.11,74.11,0,0,1,6.14-6.14A8,8,0,0,0,82.89,69L85.4,46.43a91.32,91.32,0,0,1,15-6.23l17.74,14.19a8,8,0,0,0,5.48,1.74,73.93,73.93,0,0,1,8.68,0,8,8,0,0,0,5.48-1.74L155.55,40.2a91.57,91.57,0,0,1,15,6.23L173.11,69a8,8,0,0,0,2.64,5.1,74.11,74.11,0,0,1,6.14,6.14,8,8,0,0,0,5.1,2.64l22.58,2.51a91.32,91.32,0,0,1,6.23,15l-14.19,17.74A8,8,0,0,0,199.87,123.66Z"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Game Content Area -->
+            <div class="vn-game-content">
+                <div class="vn-content-wrapper">
+                    <div class="vn-content-container">
+                        <h2 id="vn-scene-title" class="vn-scene-title">Chapter 1</h2>
+                        <div id="vn-scene-content" class="vn-scene-content">
+                            <p class="vn-story-content">Loading story...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Bar -->
+            <div id="vn-action-bar" class="vn-action-bar">
+                <button id="vn-continue" class="vn-button vn-button-primary vn-button-large">
+                    <span>Continue</span>
+                </button>
+            </div>
+
+            <!-- Choice Preview -->
+            <div id="vn-choice-preview" class="vn-choice-preview" style="display: none;">
+                <span class="choice-indicator">Choose your path...</span>
+            </div>
+
+            <!-- Choices Container -->
+            <div id="vn-choices" class="vn-choices" style="display: none;">
+                <!-- Choices will be populated by JavaScript -->
+            </div>
+        </div>
+
+        <!-- Menu Overlay -->
+        <div id="vn-menu-overlay" class="vn-menu-overlay" style="display: none;">
+            <div class="vn-menu-panel">
+                <h2>Game Menu</h2>
+                <div class="vn-menu-subtitle">What would you like to do?</div>
+                <div class="vn-menu-buttons">
+                    <button class="vn-button" id="vn-resume">Resume</button>
+                    <button class="vn-button" id="vn-save">Save Game</button>
+                    <button class="vn-button" id="vn-load">Load Game</button>
+                    <button class="vn-button" id="vn-settings-menu">Settings</button>
+                    <button class="vn-button" id="vn-main-menu-btn">Main Menu</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Save Modal -->
+        <div id="save-modal" class="vn-modal" style="display: none;">
+            <div class="vn-modal-backdrop"></div>
+            <div class="vn-modal-content">
+                <div class="vn-modal-header">
+                    <h3 class="vn-modal-title">Save Game</h3>
+                    <button class="vn-modal-close" id="close-save-modal">×</button>
+                </div>
+                <div class="vn-modal-body">
+                    <h4 class="vn-modal-subtitle">Save Slots</h4>
+                    <div class="vn-table-container">
+                        <table class="vn-table">
+                            <thead>
+                                <tr>
+                                    <th>Slot</th>
+                                    <th>Date</th>
+                                    <th>Scene</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="save-slots-table">
+                                <!-- Save slots will be populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="vn-modal-footer">
+                    <button class="vn-button vn-button-secondary" id="close-save-modal-btn">Close</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Load Modal -->
+        <div id="load-modal" class="vn-modal" style="display: none;">
+            <div class="vn-modal-backdrop"></div>
+            <div class="vn-modal-content">
+                <div class="vn-modal-header">
+                    <h3 class="vn-modal-title">Load Game</h3>
+                    <button class="vn-modal-close" id="close-load-modal">×</button>
+                </div>
+                <div class="vn-modal-body">
+                    <h4 class="vn-modal-subtitle">Save Slots</h4>
+                    <div class="vn-table-container">
+                        <table class="vn-table">
+                            <thead>
+                                <tr>
+                                    <th>Slot</th>
+                                    <th>Date</th>
+                                    <th>Scene</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="load-slots-table">
+                                <!-- Load slots will be populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="vn-modal-footer">
+                    <button class="vn-button vn-button-secondary" id="close-load-modal-btn">Close</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Debug Panel -->
+        <div id="vn-debug" class="vn-debug" style="display: none;">
+            <details>
+                <summary>Debug Info</summary>
+                <div class="vn-debug-content">
+                    <p>Scene: <span id="debug-scene">N/A</span></p>
+                    <p>Content: <span id="debug-content-count">0</span></p>
+                    <p>Choices: <span id="debug-choices-count">0</span></p>
+                </div>
+            </details>
+        </div>
+    </div>
+
+    <!-- Runtime Scripts -->
+    <script type="module">
+        try {
+            console.log('📦 Loading VN Engine and Handlebars...');
+            
+            const [{ createVNEngine }, Handlebars] = await Promise.all([
+                import('vn-engine'),
+                import('handlebars')
+            ]);
+            
+            window.createVNEngine = createVNEngine;
+            window.Handlebars = Handlebars;
+            
+            // Set debug mode if in development
+            if (window.location.hostname === 'localhost' || window.location.search.includes('debug=true')) {
+                window.VN_DEBUG = true;
+                console.log('🐛 Debug mode enabled');
+            }
+            
+            console.log('✅ VN Engine and Handlebars loaded successfully');
+            
+            // Signal that VN Engine is ready
+            window.dispatchEvent(new CustomEvent('vn-engine-ready', {
+                detail: { 
+                    createVNEngine,
+                    timestamp: Date.now(),
+                    handlebars: Handlebars
+                }
+            }));
+            
+        } catch (error) {
+            console.error('❌ Failed to load VN Engine:', error);
+            
+            // Show user-friendly error
+            const errorContainer = document.getElementById('vn-error');
+            if (errorContainer) {
+                errorContainer.innerHTML = `
+                    <div class="error-message">
+                        <h2>VN Engine Loading Error</h2>
+                        <p>Failed to load the VN Engine. This might be due to:</p>
+                        <ul>
+                            <li>Network connectivity issues</li>
+                            <li>CDN availability problems</li>
+                            <li>Browser compatibility</li>
+                        </ul>
+                        <details>
+                            <summary>Technical Details</summary>
+                            <pre>${error.message}</pre>
+                        </details>
+                        <button onclick="location.reload()">Reload Page</button>
+                    </div>
+                `;
+                errorContainer.style.display = 'block';
+            }
+            
+            throw error;
+        }
+    </script>
+    
+    <!-- VN Runtime Data -->
+    <script>
+        {{RUNTIME_DATA}}
+    </script>
+    
+    <!-- Client Runtime Scripts -->
+    {{RUNTIME_SCRIPTS}}
+</body>
+</html>

@@ -1,0 +1,51 @@
+{
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "lib": ["dom", "dom.asynciterable", "es2022", "deno.ns"],
+    "strict": true
+  },
+  "imports": {
+    "vn-engine": "npm:vn-engine@latest",
+    "handlebars": "npm:handlebars@^4.7.7",
+    "@std/cli": "https://deno.land/std@0.208.0/cli/mod.ts",
+    "@std/cli/parse-args": "https://deno.land/std@0.208.0/cli/parse_args.ts",
+    "@std/assert": "https://deno.land/std@0.208.0/assert/mod.ts",
+    "@std/path": "https://deno.land/std@0.208.0/path/mod.ts", 
+    "@std/fs": "https://deno.land/std@0.208.0/fs/mod.ts",
+    "@std/fs/walk": "https://deno.land/std@0.208.0/fs/walk.ts",
+    "@std/yaml": "https://deno.land/std@0.208.0/yaml/mod.ts",
+    "yaml": "npm:js-yaml@^4.1.0",
+    "esbuild": "npm:esbuild@^0.19.0",
+    "terser": "npm:terser@^5.24.0",
+    "clean-css": "npm:clean-css@^5.3.2"
+  },
+  "tasks": {
+    "dev": "deno run -A cli.ts",
+    "compile": "deno run -A cli.ts compile",
+    "build": "deno compile -A --output bin/vn-compiler cli.ts",
+    "test": "deno test -A",
+    "test:watch": "deno test -A --watch",
+    "format": "deno fmt",
+    "lint": "deno lint",
+    "check": "deno check **/*.ts"
+  },
+  "exclude": [
+    "node_modules",
+    "dist",
+    "bin",
+    "examples/*/output"
+  ],
+  "fmt": {
+    "useTabs": false,
+    "lineWidth": 100,
+    "indentWidth": 2,
+    "semiColons": true,
+    "singleQuote": true,
+    "proseWrap": "preserve"
+  },
+  "lint": {
+    "rules": {
+      "tags": ["recommended"]
+    }
+  }
+}
