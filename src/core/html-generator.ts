@@ -1,5 +1,6 @@
 import type {
   BundleOptions,
+  ComponentHelperConfig,
   GameData,
   Logger,
   ProcessedAsset,
@@ -33,8 +34,7 @@ export class HTMLGenerator {
 
     try {
       const runtimes = clientRuntimes || await this.clientBuilder.getAllClientRuntimes();
-      
-      const bundledCSS = this.bundleCSS(options, runtimes);
+      const bundledCSS = this.bundleCSS(options, runtimes, options.gameData.components);
       
       const runtimeData = this.generateRuntimeData(options);
       
@@ -63,37 +63,62 @@ export class HTMLGenerator {
   /**
    * Bundle CSS components for client
    */
-  private bundleCSS(options: BundleOptions, clientRuntimes?: Record<string, string>): string {
-    const components: string[] = [];
+  private bundleCSS(options: BundleOptions, clientRuntimes?: Record<string, string>, componentData?: ComponentHelperConfig[]): string {
+    const cssComponents: string[] = [];
 
-    components.push('');
-    components.push(this.getBaseCSS());
+    // Set theme from metadata before building CSS
+    this.templateManager.setThemeFromMetadata(options.metadata);
+    const currentTheme = this.templateManager.getCurrentThemeId();
+    this.logger.debug(`🎨 Using theme: ${currentTheme}`);
 
-    components.push('');
+    // Start with theme variables (always first)
+    cssComponents.push('/* Theme Variables */');
+    cssComponents.push(this.templateManager.getThemeVariablesCSS());
+
+    // Add base structural CSS
+    cssComponents.push('/* Base CSS */');
+    cssComponents.push(this.getBaseCSS());
+
+    // Add external theme CSS or fallback
+    cssComponents.push('/* Theme CSS */');
     if (clientRuntimes && clientRuntimes['ASSETS_THEME_CSS']) {
-      components.push(clientRuntimes['ASSETS_THEME_CSS']);
+      cssComponents.push(clientRuntimes['ASSETS_THEME_CSS']);
       this.logger.debug('✅ Using external theme CSS asset');
     } else {
       const theme = this.templateManager.getTheme();
-      components.push(theme.css);
-      this.logger.warn('⚠️ Using fallback theme CSS (external asset not found)');
+      if (theme.css) {
+        cssComponents.push(theme.css);
+        this.logger.debug('✅ Using loaded theme CSS');
+      } else {
+        this.logger.info(`ℹ️ No external theme CSS found, using built-in theme: ${currentTheme}`);
+        // Built-in themes rely on CSS variables defined above
+      }
     }
 
-    components.push('');
-    components.push(this.getVNEngineCSS());
+    // Add VN Engine CSS
+    cssComponents.push('/* VN Engine CSS */');
+    cssComponents.push(this.getVNEngineCSS());
 
-    components.push('');
-    components.push(this.getInputHelperCSS());
+    // Add input helper CSS
+    cssComponents.push('/* Input Helper CSS */');
+    cssComponents.push(this.getInputHelperCSS());
 
+    // Add component CSS
+    cssComponents.push('/* Component CSS */');
+    cssComponents.push(this.getComponentCSS(componentData || []));
+
+    // Add custom CSS if provided
     if (options.customCSS) {
-      components.push('');
-      components.push(options.customCSS);
+      cssComponents.push('/* Custom CSS */');
+      cssComponents.push(options.customCSS);
     }
 
-    let bundledCSS = components.join('\n\n');
+    let bundledCSS = cssComponents.join('\n\n');
 
+    // Apply theme variables to the entire CSS bundle
     bundledCSS = this.templateManager.applyThemeVariables(bundledCSS, this.templateManager.getTheme());
 
+    // Minify if requested
     if (options.minify) {
       this.logger.verbose('🗜️ Minifying CSS...');
       try {
@@ -106,8 +131,15 @@ export class HTMLGenerator {
       }
     }
 
-    this.logger.verbose(`🎨 CSS bundled (v1): ${this.formatSize(bundledCSS.length)}`);
+    this.logger.verbose(`🎨 CSS bundled with theme '${currentTheme}': ${this.formatSize(bundledCSS.length)}`);
     return bundledCSS;
+  }
+
+  /**
+   * Get available themes for documentation/debugging
+   */
+  getAvailableThemes(): Array<{id: string, name: string, category: string, description: string}> {
+    return this.templateManager.getAvailableThemes();
   }
 
   /**
@@ -132,8 +164,7 @@ export class HTMLGenerator {
       .replace('{{RUNTIME_DATA}}', data.runtimeData)
       .replace('{{GENERATION_TIMESTAMP}}', new Date().toISOString())
       .replace('{{SCENE_COUNT}}', data.gameData.scenes.length.toString())
-      .replace('{{INPUT_HELPER_COUNT}}', data.gameData.inputHelpers.length.toString())
-      .replace('{{RUNTIME_SCRIPTS}}', this.generateRuntimeScripts(data.clientRuntimes, data.customJS));
+      .replace('{{RUNTIME_SCRIPTS}}', this.generateRuntimeScripts(data.clientRuntimes, data.customJS, data.gameData.components));
 
     for (const [placeholder, content] of Object.entries(data.clientRuntimes)) {
       this.logger.debug(`🔄 Replacing placeholder {{${placeholder}}} with ${content.length} chars`);
@@ -146,29 +177,38 @@ export class HTMLGenerator {
   /**
    * Generate runtime scripts for injection
    */
-  private generateRuntimeScripts(clientRuntimes: Record<string, string>, customJS?: string): string {
+  private generateRuntimeScripts(clientRuntimes: Record<string, string>, customJS?: string, componentData?: ComponentHelperConfig[]): string {
     const scripts: string[] = [];
     
     const scriptOrder = [
       'UTILS_POLYFILLS_JS',
-      'UTILS_DEBUG_HELPERS_JS',
       'VENDOR_VN_ENGINE_LOADER_JS',
-      'VENDOR_HANDLEBARS_LOADER_JS',
       'RUNTIME_ASSET_MANAGER_JS',
+      'RUNTIME_DOM_OBSERVER_MANAGER_JS',
       'RUNTIME_INPUT_MANAGER_JS',
+      'RUNTIME_BASE_COMPONENT_JS',
+      'RUNTIME_COMPONENT_MANAGER_JS',
       'RUNTIME_UI_MANAGER_JS',
       'RUNTIME_SCENE_MANAGER_JS',
       'RUNTIME_FEED_MANAGER_JS',
       'RUNTIME_MENU_MANAGER_JS',
       'RUNTIME_SAVE_MANAGER_JS',
       'RUNTIME_VN_COMPILER_RUNTIME_JS',
-      'RUNTIME_GAME_INITIALIZATION_JS'
+      'RUNTIME_GAME_INITIALIZATION_JS',
+      'UTILS_DEBUG_HELPERS_JS',
     ];
 
     for (const scriptKey of scriptOrder) {
       if (clientRuntimes[scriptKey]) {
         scripts.push(`<script>\n${clientRuntimes[scriptKey]}\n</script>`);
       }
+    }
+
+    // Add component JavaScript files
+    const componentJS = this.getComponentJS(componentData || []);
+    if (componentJS.trim()) {
+      scripts.push(`<script>\n// Component JavaScript\n${componentJS}\n</script>`);
+      this.logger.verbose('🧩 Component JS bundled into runtime scripts');
     }
 
     // Add custom JavaScript if provided
@@ -188,9 +228,8 @@ export class HTMLGenerator {
       gameData: {
         script: options.gameData.script,
         scenes: options.gameData.scenes,
-        metadata: options.gameData.metadata,
-        variables: options.gameData.metadata.variables || {},
-        inputHelpers: options.gameData.inputHelpers,
+        metadata: options.metadata,
+        variables: options.metadata.variables || {},
         assets: this.createAssetManifest(options.assets),
       },
       config: {
@@ -293,5 +332,69 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
   private getInputHelperCSS(): string {
     return `.vn-input { padding: 10px 12px; border: 1px solid #ccc; border-radius: 4px; width: 100%; }
 .vn-input:focus { outline: none; border-color: #007bff; }`;
+  }
+
+  private getComponentCSS(components: ComponentHelperConfig[]): string {
+    const cssContent: string[] = [];
+    const processedPaths = new Set<string>();
+    
+    for (const component of components) {
+      if (component && component.cssPath && !processedPaths.has(component.cssPath)) {
+        processedPaths.add(component.cssPath);
+        
+        try {
+          // Try to read CSS file if it exists
+          const cssExists = Deno.statSync(component.cssPath).isFile;
+          if (cssExists) {
+            const cssData = Deno.readTextFileSync(component.cssPath);
+            cssContent.push(`/* Component: ${component.componentName} (${component.cssPath}) */`);
+            cssContent.push(cssData);
+            this.logger.debug(`✅ Loaded CSS for component: ${component.componentName}`);
+          }
+        } catch (error) {
+          // CSS file doesn't exist or can't be read
+          const errorString = error instanceof Error ? error.message : String(error);
+          this.logger.warn(`⚠️ Could not load CSS file for component: ${component.componentName} (${component.cssPath}) - ${errorString}`);
+        }
+      }
+    }
+    
+    return cssContent.join('\n\n');
+  }
+
+  private getComponentJS(components: ComponentHelperConfig[]): string {
+    const jsContent: string[] = [];
+    const processedPaths = new Set<string>();
+    
+    for (const component of components) {
+      if (component && component.scriptPath && !processedPaths.has(component.scriptPath)) {
+        processedPaths.add(component.scriptPath);
+        
+        try {
+          // Try to read JavaScript file if it exists
+          const jsExists = Deno.statSync(component.scriptPath).isFile;
+          if (jsExists) {
+            let jsData = Deno.readTextFileSync(component.scriptPath);
+            
+            // Strip ES6 export statements for browser compatibility
+            jsData = jsData
+              .replace(/^export\s+default\s+\w+;?\s*$/gm, '') // Remove 'export default ClassName;'
+              .replace(/^export\s*\{[^}]*\}\s*;?\s*$/gm, '') // Remove 'export { ... };'
+              .replace(/^export\s+\w+\s+/gm, '') // Remove 'export class/function/const '
+              .trim();
+            
+            jsContent.push(`/* Component: ${component.componentName} (${component.scriptPath}) */`);
+            jsContent.push(jsData);
+            this.logger.debug(`✅ Loaded JS for component: ${component.componentName} (stripped exports)`);
+          }
+        } catch (error) {
+          // JavaScript file doesn't exist or can't be read
+          const errorString = error instanceof Error ? error.message : String(error);
+          this.logger.warn(`⚠️ Could not load JS file for component: ${component.componentName} (${component.scriptPath}) - ${errorString}`);
+        }
+      }
+    }
+    
+    return jsContent.join('\n\n');
   }
 }

@@ -14,6 +14,7 @@ COMMANDS:
   validate <input>    Validate YAML script without compiling  
   init <name>         Create new VN project from template
   serve <input>       Start development server with hot reload
+  server              Start API server for remote compilation
 
 COMPILE OPTIONS:
   -o, --output <file>     Output HTML file (default: game.html)
@@ -36,6 +37,11 @@ SERVE OPTIONS:
   -p, --port <number>     Port for dev server (default: 3000)
   -w, --watch             Watch for file changes (default: true)
 
+SERVER OPTIONS:
+  -p, --port <number>     Port for API server (default: 8080)
+  --cors <origin>         CORS origin (default: *)
+  --workdir <path>        Working directory for sessions (default: ./vn-server-temp)
+
 GLOBAL OPTIONS:
   -h, --help              Show help information
   --version               Show version number
@@ -57,6 +63,10 @@ EXAMPLES:
 
   # Validation only
   vn-compiler validate story.yaml --verbose
+
+  # API server for remote compilation
+  vn-compiler server --port 8080 --cors "http://localhost:3000"
+
 
 YAML INPUT HELPER SYNTAX:
   {{input:varName:placeholder:type}}
@@ -141,6 +151,9 @@ export function showCommandHelp(command: string): void {
         break;
       case 'serve':
         showServeHelp();
+        break;
+      case 'server':
+        showServerHelp();
         break;
       default:
         console.log(`Unknown command: ${command}`);
@@ -339,5 +352,69 @@ SERVER ENDPOINTS:
   /api/reload             WebSocket for live reload
   /api/status             Compilation status
   /api/validate           Script validation
+`);
+}
+function showServerHelp(): void {
+    console.log(`
+🌐 VN Compiler - SERVER Command
+
+Start API server for remote compilation from web applications.
+
+USAGE:
+  vn-compiler server [options]
+
+OPTIONS:
+  -p, --port <number>     Server port (default: 8080)
+  --cors <origin>         CORS origin (default: *)
+  --workdir <path>        Working directory for sessions (default: ./vn-server-temp)
+  --verbose               Enable verbose logging
+
+API ENDPOINTS:
+  POST /api/session       Create new compilation session
+  POST /api/session/:id/script    Upload YAML script content
+  POST /api/session/:id/asset     Upload asset file
+  POST /api/session/:id/compile   Compile the project
+  GET /api/session/:id/download   Download compiled HTML
+  GET /api/session/:id/status     Get session status
+  DELETE /api/session/:id         Delete session
+  GET /health             Health check endpoint
+
+EXAMPLES:
+  # Start API server on default port 8080
+  vn-compiler server
+
+  # Start with custom port and CORS
+  vn-compiler server --port 9000 --cors "https://myapp.com"
+
+  # Start with custom working directory
+  vn-compiler server --workdir /tmp/vn-sessions
+
+INTEGRATION EXAMPLE (JavaScript):
+  // Create session
+  const session = await fetch('http://localhost:8080/api/session', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title: 'My Game', author: 'Me' })
+  }).then(r => r.json());
+
+  // Upload script
+  await fetch(\`http://localhost:8080/api/session/\${session.sessionId}/script\`, {
+    method: 'POST',
+    body: yamlContent
+  });
+
+  // Compile and download
+  await fetch(\`http://localhost:8080/api/session/\${session.sessionId}/compile\`, {
+    method: 'POST'
+  });
+  const html = await fetch(\`http://localhost:8080/api/session/\${session.sessionId}/download\`);
+
+FEATURES:
+  • CORS support for web applications
+  • Session-based compilation
+  • Asset upload support
+  • Automatic cleanup
+  • RESTful API design
+  • Compatible with any frontend framework
 `);
 }

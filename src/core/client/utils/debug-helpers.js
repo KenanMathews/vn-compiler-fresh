@@ -1,4 +1,4 @@
-if (typeof window !== 'undefined' && (window.VN_DEBUG || window.location.hostname === 'localhost')) {
+if (typeof window !== 'undefined' && (window.VN_DEBUG || window.location.hostname === 'localhost' || window.location.search.includes('debug=true'))) {
   
     window.vnDebug = {
       checkHelpers: () => {
@@ -11,9 +11,9 @@ if (typeof window !== 'undefined' && (window.VN_DEBUG || window.location.hostnam
       testHelper: (helperName) => {
         console.log(`🧪 Testing helper: ${helperName}`);
         
-        if (window.vnEngine && window.vnEngine.registerHelper) {
+        if (window.vnRuntime?.vnEngine && window.vnRuntime.vnEngine.registerHelper) {
           try {
-            const testResult = window.vnEngine.registerHelper('__test__', () => 'test');
+            const testResult = window.vnRuntime.vnEngine.registerHelper('__test__', () => 'test');
             console.log(`✅ Helper system is working: ${testResult}`);
           } catch (e) {
             console.log(`❌ Helper system error: ${e.message}`);
@@ -26,9 +26,10 @@ if (typeof window !== 'undefined' && (window.VN_DEBUG || window.location.hostnam
       listHelpers: () => {
         console.group('📋 Available Helper Functions');
         
-        if (window.vnEngine && window.vnEngine.getTemplateCapabilities) {
-          const capabilities = window.vnEngine.getTemplateCapabilities();
+        if (window.vnRuntime?.vnEngine && window.vnRuntime.vnEngine.getTemplateCapabilities) {
+          const capabilities = window.vnRuntime.vnEngine.getTemplateCapabilities();
           console.log('Template capabilities:', capabilities);
+          return capabilities;
         } else {
           console.log('❌ VN Engine template system not available');
         }
@@ -37,11 +38,11 @@ if (typeof window !== 'undefined' && (window.VN_DEBUG || window.location.hostnam
       },
       
       getGameState: () => {
-        if (window.vnEngine) {
+        if (window.vnRuntime?.vnEngine) {
           return {
-            currentScene: window.vnEngine.getCurrentScene(),
-            gameState: window.vnEngine.getGameState(),
-            choiceHistory: window.vnEngine.getChoiceHistory(),
+            currentScene: window.vnRuntime.vnEngine.getCurrentScene(),
+            gameState: window.vnRuntime.vnEngine.getGameState(),
+            choiceHistory: window.vnRuntime.vnEngine.getChoiceHistory(),
             sceneHistory: window.vnRuntime?.sceneManager?.getSceneHistory() || []
           };
         }
@@ -84,11 +85,11 @@ if (typeof window !== 'undefined' && (window.VN_DEBUG || window.location.hostnam
         return { error: 'Choice function not available' };
       },
       
-      goToScene: (sceneName) => {
-        if (window.vnGame && window.vnGame.goToScene) {
-          return window.vnGame.goToScene(sceneName);
+      startScene: (sceneName) => {
+        if (window.vnGame && window.vnGame.startScene) {
+          return window.vnGame.startScene(sceneName);
         }
-        return { error: 'GoToScene function not available' };
+        return { error: 'StartScene function not available' };
       },
       
       getPerformanceInfo: () => {
@@ -105,11 +106,11 @@ if (typeof window !== 'undefined' && (window.VN_DEBUG || window.location.hostnam
       
       logSystemInfo: () => {
         console.group('🔍 VN System Information');
-        console.log('VN Engine:', !!window.vnEngine);
+        console.log('VN Engine:', !!window.vnRuntime.vnEngine);
         console.log('VN Runtime:', !!window.vnRuntime);
         console.log('VN Game Interface:', !!window.vnGame);
-        console.log('Template Manager:', !!window.vnEngine?.templateManager);
-        console.log('Handlebars:', !!window.vnEngine?.templateManager?.handlebars);
+        console.log('Template Manager:', !!window.vnRuntime.vnEngine?.templateManager);
+        console.log('Handlebars:', !!window.vnRuntime.vnEngine?.templateManager?.handlebars);
         console.log('Assets:', window.VN_RUNTIME_DATA?.assets ? 'Loaded' : 'Not loaded');
         console.log('Debug Mode:', !!window.VN_DEBUG);
         console.log('Performance:', window.vnDebug.getPerformanceInfo());

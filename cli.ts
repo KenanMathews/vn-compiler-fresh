@@ -9,6 +9,7 @@ import { compileCommand } from "./src/cli/commands/compile.ts";
 import { validateCommand } from "./src/cli/commands/validate.ts";
 import { initCommand } from "./src/cli/commands/init.ts";
 import { serveCommand } from "./src/cli/commands/serve.ts";
+import { serverCommand } from "./src/cli/commands/server.ts";
 
 const VERSION = "0.1.0";
 
@@ -16,10 +17,11 @@ async function main() {
   const args = parseArgs(Deno.args, {
     string: [
       "output", "css", "js", "assets", "template", "config", 
-      "theme", "title", "port", "directory", "author", "description"
+      "theme", "title", "port", "directory", "author", "description",
+      "cors", "workdir"
     ],
     boolean: [
-      "help", "version", "minify", "verbose", "watch", "dev"
+      "help", "version", "minify", "verbose", "watch", "dev", "no-watch"
     ],
     alias: {
       o: "output",
@@ -41,7 +43,9 @@ async function main() {
       minify: false,
       dev: false,
       verbose: false,
-      watch: true
+      watch: true,
+      cors: "*",
+      workdir: "./vn-server-temp"
     }
   }) as CLIArgs;
 
@@ -78,6 +82,14 @@ async function main() {
         
       case "serve":
         await serveCommand(args, logger);
+        break;
+        
+      case "server":
+        // Set default port for server command to 8080
+        if (!args.port || args.port === 3000) {
+          args.port = 8080;
+        }
+        await serverCommand(args, logger);
         break;
         
       default:

@@ -1,3 +1,6 @@
+/**
+ * Content Manager
+ */
 class ContentManager {
   constructor(vnEngine) {
     this.vnEngine = vnEngine;
@@ -13,6 +16,9 @@ class ContentManager {
     this.initializeElements();
   }
 
+  /**
+   * Initialize DOM elements
+   */
   initializeElements() {
     this.sceneTitleElement = document.getElementById('vn-scene-title');
     this.sceneContentElement = document.getElementById('vn-scene-content');
@@ -26,6 +32,9 @@ class ContentManager {
     }
   }
 
+  /**
+   * Set the current scene title
+   */
   setSceneTitle(title) {
     if (this.sceneTitleElement) {
       this.sceneTitleElement.textContent = title;
@@ -33,6 +42,9 @@ class ContentManager {
     this.currentScene = title;
   }
 
+  /**
+   * Clear all content
+   */
   clearContent() {
     if (this.sceneContentElement) {
       this.sceneContentElement.innerHTML = '';
@@ -42,14 +54,19 @@ class ContentManager {
     this.hideChoicePreview();
   }
 
+  /**
+   * Add dialogue content to the scene
+   */
   addDialogueContent(speaker, content, options = {}) {
     if (!this.sceneContentElement) {
       console.error('❌ Scene content element not available');
       return null;
     }
 
+    // Clear previous content (VN style - show current dialogue only)
     this.clearContent();
 
+    // Handle HTML entities in content (important for VN Engine output)
     let processedContent;
     if (typeof content === 'string' && content.includes('&')) {
       const unescapedContent = this.decodeHtmlEntities(content);
@@ -58,18 +75,17 @@ class ContentManager {
       processedContent = this.processContent(content);
     }
     
+    // Build HTML (escape speaker names for safety, allow HTML in content)
     let html = '';
-    
     if (speaker && speaker.trim()) {
       html += `<div class="vn-speaker">${this.escapeHTML(speaker)}</div>`;
     }
-    
     html += processedContent;
     
+    // Update display
     this.sceneContentElement.innerHTML = html;
     
-    this.processInputHelpers(this.sceneContentElement);
-    
+    // Store content entry
     const contentEntry = {
       type: 'dialogue',
       speaker: speaker || '',
@@ -82,9 +98,21 @@ class ContentManager {
     return contentEntry;
   }
 
+  /**
+   * Process content for display
+   */
   processContent(content) {
     if (!content) return '';
     
+    // Check if content contains HTML tags
+    const hasHtmlTags = /<[^>]*>/g.test(content);
+    
+    // If content has HTML, return it directly (preserve structure)
+    if (hasHtmlTags) {
+      return content;
+    }
+    
+    // Otherwise, process as plain text with markdown-like formatting
     const paragraphs = content.split('\n\n').filter(p => p.trim());
     
     if (paragraphs.length === 0) return '';
@@ -92,6 +120,7 @@ class ContentManager {
     return paragraphs.map(paragraph => {
       const trimmed = paragraph.trim();
       
+      // Handle simple markdown-like formatting
       if (trimmed.startsWith('# ')) {
         return `<h3 class="vn-content-subtitle">${trimmed.substring(2)}</h3>`;
       } else if (trimmed.startsWith('## ')) {
@@ -104,47 +133,15 @@ class ContentManager {
     }).join('');
   }
 
-  showChoices(prompt, choices, options = {}) {
-    if (!this.choicesContainer) {
-      console.error('❌ Choices container not available');
-      return;
-    }
-
-    this.hideActionBar();
-    
-    this.choicesContainer.innerHTML = '';
-    
-    if (prompt && prompt.trim()) {
-      const promptElement = document.createElement('div');
-      promptElement.className = 'vn-choice-prompt';
-      promptElement.textContent = prompt;
-      this.choicesContainer.appendChild(promptElement);
-    }
-    
-    choices.forEach((choice, index) => {
-      const button = document.createElement('button');
-      button.className = 'vn-choice-button';
-      button.textContent = choice.text || choice;
-      button.setAttribute('data-choice-index', index);
-      
-      button.addEventListener('click', () => {
-        this.handleChoiceSelection(index, choice);
-      });
-      
-      this.choicesContainer.appendChild(button);
-    });
-    
-    this.choicesContainer.style.display = 'flex';
-    this.pendingChoices = { choices, timestamp: Date.now() };
-    
-    this.showChoicePreview();
-  }
-
-  handleChoiceSelection(choiceIndex, choice) {
+  /**
+   * Handle choice selection
+   */
+  handleChoiceSelection(choiceIndex) {
     if (!this.pendingChoices) {
       return;
     }
     
+    // Update choice UI
     const buttons = this.choicesContainer.querySelectorAll('.vn-choice-button');
     buttons.forEach((btn, index) => {
       if (index === choiceIndex) {
@@ -157,9 +154,9 @@ class ContentManager {
     });
     
     this.pendingChoices = null;
-    
     this.hideChoicePreview();
         
+    // Process choice through VN Engine
     requestAnimationFrame(() => {
       this.hideChoices();
       this.showActionBar();
@@ -171,113 +168,128 @@ class ContentManager {
     });
   }
 
+  /**
+   * Show action bar (continue button)
+   */
   showActionBar() {
     if (this.actionBar) {
       this.actionBar.style.display = 'block';
     }
   }
 
+  /**
+   * Hide action bar
+   */
   hideActionBar() {
     if (this.actionBar) {
       this.actionBar.style.display = 'none';
     }
   }
 
+  /**
+   * Show choices container
+   */
   showChoices() {
     if (this.choicesContainer) {
       this.choicesContainer.style.display = 'flex';
     }
   }
 
+  /**
+   * Hide choices container
+   */
   hideChoices() {
     if (this.choicesContainer) {
       this.choicesContainer.style.display = 'none';
     }
   }
 
+  /**
+   * Show choice preview
+   */
   showChoicePreview() {
     if (this.choicePreview) {
       this.choicePreview.style.display = 'block';
     }
   }
 
+  /**
+   * Hide choice preview
+   */
   hideChoicePreview() {
     if (this.choicePreview) {
       this.choicePreview.style.display = 'none';
     }
   }
 
-  addInputInterface(label, inputConfig) {
-    if (!this.sceneContentElement) {
-      console.error('❌ Scene content element not available');
-      return null;
-    }
-
-    const inputId = `input-${Date.now()}`;
-    
-    let html = `
-      <div class="vn-input-area">
-        <div class="vn-input-group">
-          <label for="${inputId}" class="vn-input-label">${this.escapeHTML(label)}</label>
-    `;
-    
-    switch (inputConfig.type) {
-      case 'text':
-        html += `<input type="text" id="${inputId}" class="vn-input-field" placeholder="${inputConfig.placeholder || ''}" data-var="${inputConfig.varName}">`;
-        break;
-      case 'textarea':
-        html += `<textarea id="${inputId}" class="vn-input-field" placeholder="${inputConfig.placeholder || ''}" data-var="${inputConfig.varName}" rows="3"></textarea>`;
-        break;
-      case 'select':
-        html += `<select id="${inputId}" class="vn-input-field" data-var="${inputConfig.varName}">`;
-        if (inputConfig.options) {
-          inputConfig.options.forEach(option => {
-            html += `<option value="${option.value || option}">${option.text || option}</option>`;
-          });
-        }
-        html += `</select>`;
-        break;
-      case 'checkbox':
-        html += `<label class="vn-checkbox-label"><input type="checkbox" id="${inputId}" class="vn-input-field" data-var="${inputConfig.varName}"> ${inputConfig.checkboxLabel || 'Yes'}</label>`;
-        break;
-      case 'range':
-        html += `<input type="range" id="${inputId}" class="vn-input-field" data-var="${inputConfig.varName}" min="${inputConfig.min || 0}" max="${inputConfig.max || 100}" value="${inputConfig.value || 50}">`;
-        break;
-      default:
-        html += `<input type="text" id="${inputId}" class="vn-input-field" placeholder="${inputConfig.placeholder || ''}" data-var="${inputConfig.varName}">`;
-    }
-    
-    html += `
-        </div>
-      </div>
-    `;
-    
-    this.sceneContentElement.insertAdjacentHTML('beforeend', html);
-    
-    const inputElement = document.getElementById(inputId);
-    if (inputElement && window.vnRuntime?.inputManager) {
-      window.vnRuntime.inputManager.bindInputElement(
-        inputElement, 
-        inputConfig.varName, 
-        inputConfig.type
-      );
-    }
-    
-    return inputId;
+  /**
+   * Serialize content state for saving
+   */
+  serializeContent() {
+    return {
+      currentScene: this.currentScene,
+      content: this.currentContent,
+      pendingChoices: this.pendingChoices
+    };
   }
 
-  processInputHelpers(element) {
-    if (window.vnRuntime?.inputManager) {
-      window.vnRuntime.inputManager.processNewContent(element);
+  /**
+   * Deserialize content state from save
+   */
+  deserializeContent(contentData) {
+    if (!contentData) return;
+    
+    this.currentScene = contentData.currentScene || null;
+    this.currentContent = contentData.content || [];
+    this.pendingChoices = contentData.pendingChoices || null;
+    
+    // Restore scene title
+    if (this.currentScene) {
+      this.setSceneTitle(this.currentScene);
+    }
+    
+    // Restore last content
+    if (this.currentContent.length > 0) {
+      const lastContent = this.currentContent[this.currentContent.length - 1];
+      if (lastContent.type === 'dialogue') {
+        this.addDialogueContent(lastContent.speaker, lastContent.content);
+      }
     }
   }
 
+  /**
+   * Get current content count
+   */
+  getEntryCount() {
+    return this.currentContent.length;
+  }
+
+  /**
+   * Clear feed (compatibility method)
+   */
+  clearFeed() {
+    this.clearContent();
+  }
+
+  /**
+   * Check if choices are pending
+   */
+  hasPendingChoices() {
+    return !!this.pendingChoices;
+  }
+
+  /**
+   * Escape HTML for safe display (used for speaker names)
+   */
   escapeHTML(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
   }
 
+  /**
+   * Decode HTML entities (important for VN Engine output)
+   */
   decodeHtmlEntities(str) {
     if (typeof str !== 'string') return str;
         
@@ -312,68 +324,8 @@ class ContentManager {
     textArea.innerHTML = decoded;
     return textArea.value;
   }
-
-  getContentState() {
-    return {
-      currentScene: this.currentScene,
-      contentCount: this.currentContent.length,
-      hasPendingChoices: !!this.pendingChoices,
-      lastUpdate: this.currentContent.length > 0 ? this.currentContent[this.currentContent.length - 1].timestamp : null
-    };
-  }
-
-  serializeContent() {
-    return {
-      currentScene: this.currentScene,
-      content: this.currentContent,
-      pendingChoices: this.pendingChoices
-    };
-  }
-
-  deserializeContent(contentData) {
-    if (!contentData) return;
-    
-    this.currentScene = contentData.currentScene || null;
-    this.currentContent = contentData.content || [];
-    this.pendingChoices = contentData.pendingChoices || null;
-    
-    if (this.currentScene) {
-      this.setSceneTitle(this.currentScene);
-    }
-    
-    if (this.currentContent.length > 0) {
-      const lastContent = this.currentContent[this.currentContent.length - 1];
-      if (lastContent.type === 'dialogue') {
-        this.addDialogueContent(lastContent.speaker, lastContent.content);
-      }
-    }
-  }
-
-  addDialogueEntry(speaker, content, options = {}) {
-    return this.addDialogueContent(speaker, content, options);
-  }
-
-  addChoiceEntry(prompt, choices, options = {}) {
-    this.showChoices(prompt, choices, options);
-    return 'choices-' + Date.now();
-  }
-
-  addInputEntry(label, inputConfig) {
-    return this.addInputInterface(label, inputConfig);
-  }
-
-  clearFeed() {
-    this.clearContent();
-  }
-
-  getEntryCount() {
-    return this.currentContent.length;
-  }
-
-  hasPendingChoices() {
-    return !!this.pendingChoices;
-  }
 }
 
-window.FeedManager = ContentManager;
+// Export both names for compatibility
 window.ContentManager = ContentManager;
+window.FeedManager = ContentManager;

@@ -10,7 +10,7 @@
     <script type="importmap">
         {
             "imports": {
-                "vn-engine": "https://esm.sh/vn-engine@1.1.1",
+                "vn-engine": "https://esm.sh/vn-engine@1.2.4",
                 "handlebars": "https://esm.sh/handlebars@4.7.7",
                 "js-yaml": "https://esm.sh/js-yaml@4.1.0"
             }
@@ -100,8 +100,23 @@
                 <div class="vn-content-wrapper">
                     <div class="vn-content-container">
                         <h2 id="vn-scene-title" class="vn-scene-title">Chapter 1</h2>
-                        <div id="vn-scene-content" class="vn-scene-content">
-                            <p class="vn-story-content">Loading story...</p>
+                        
+                        <!-- Component Lifecycle Layers -->
+                        <div id="vn-content-layers">
+                            
+                            <!-- Layer 1: Persistent Components (Cross-Scene) -->
+                            <div id="vn-persistent-components" class="vn-component-layer" data-lifecycle="persistent">
+                            </div>
+                            
+                            <!-- Layer 2: Scene Content (Story Text) -->
+                            <div id="vn-scene-content" class="vn-scene-content">
+                                <p class="vn-story-content">Loading story...</p>
+                            </div>
+                            
+                            <!-- Layer 3: Scene Components (Preserved during content updates) -->
+                            <div id="vn-scene-components" class="vn-scene-components" data-lifecycle="scene">
+                            </div>
+                            
                         </div>
                     </div>
                 </div>
@@ -219,9 +234,7 @@
 
     <!-- Runtime Scripts -->
     <script type="module">
-        try {
-            console.log('📦 Loading VN Engine and Handlebars...');
-            
+        try {            
             const [{ createVNEngine }, Handlebars] = await Promise.all([
                 import('vn-engine'),
                 import('handlebars')
@@ -235,9 +248,7 @@
                 window.VN_DEBUG = true;
                 console.log('🐛 Debug mode enabled');
             }
-            
-            console.log('✅ VN Engine and Handlebars loaded successfully');
-            
+                        
             // Signal that VN Engine is ready
             window.dispatchEvent(new CustomEvent('vn-engine-ready', {
                 detail: { 

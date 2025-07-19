@@ -136,7 +136,8 @@ class DevelopmentServer {
         this.logger.success(`✅ Compilation successful (${compilationTime}ms)`);
         
         if (result.stats) {
-          this.logger.debug(`📊 Stats: ${result.stats.sceneCount} scenes, ${result.stats.assetCount} assets, ${result.stats.inputHelperCount} inputs`);
+          const stats = result.stats as any;
+          this.logger.debug(`📊 Stats: ${stats.sceneCount} scenes, ${stats.assetCount} assets, ${stats.inputHelperCount} inputs`);
         }
 
         // Inject development enhancements

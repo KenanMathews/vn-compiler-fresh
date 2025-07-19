@@ -1,24 +1,289 @@
 /**
- * VN Compiler Runtime (Client-side) - Full-screen Scene Version
- * Full JavaScript file with proper syntax highlighting and IntelliSense
+ * VN Compiler Runtime
  */
 class VNCompilerRuntime {
   constructor() {
     this.vnEngine = null;
     this.gameData = null;
-    this.assetManager = null;
-    this.inputManager = null;
-    this.sceneManager = null;
-    this.uiManager = null;
-    this.contentManager = null;
-    this.menuManager = null;
-    this.saveManager = null;
     this.initialized = false;
-    this.helpersRegistered = false;
     this.isStreaming = false;
     this.currentScene = null;
+    
+    // Core managers
+    this.assetManager = null;
+    this.contentManager = null;
+    this.saveManager = null;
+    this.menuManager = null;
+    this.uiManager = null;
+    this.inputManager = null;
+    this.componentManager = null;
   }
 
+  /**
+   * Main initialization method
+   */
+  async initialize() {
+    try {
+      console.log('🚀 Initializing VN Compiler Runtime...');
+      
+      // Step 1: Load VN Engine
+      await this.initializeVNEngine();
+      
+      // Step 2: Create all managers
+      await this.initializeManagers();
+      
+      // Step 3: Connect managers together
+      this.connectManagers();
+      
+      // Step 4: Setup event handling
+      this.setupEventHandlers();
+      
+      // Step 5: Expose global API
+      this.exposeGlobalAPI();
+      
+      // Step 6: Start the game
+      this.startGame();
+      
+      this.initialized = true;
+      console.log('✅ VN Compiler Runtime initialized successfully');
+      
+    } catch (error) {
+      console.error('❌ Failed to initialize VN Compiler Runtime:', error);
+      this.showError('Failed to initialize game engine: ' + error.message);
+    }
+  }
+
+  /**
+   * Initialize VN Engine
+   */
+  async initializeVNEngine() {
+    console.log('🔧 Loading VN Engine...');
+    
+    this.vnEngine = await this.loadVNEngine();
+    
+    // Initialize variables from runtime data
+    if (window.VN_RUNTIME_DATA?.gameData?.variables) {
+      Object.entries(window.VN_RUNTIME_DATA.gameData.variables).forEach(([key, value]) => {
+        this.vnEngine.setVariable(key, value);
+      });
+    }
+    
+    // Load game script
+    if (window.VN_RUNTIME_DATA?.gameData?.script) {
+      this.vnEngine.loadScript(window.VN_RUNTIME_DATA.gameData.script);
+    }
+    
+    // Setup VN Engine event listeners
+    this.vnEngine.on('stateChange', (result) => {
+      this.handleVNEngineResponse(result);
+    });
+    
+    console.log('✅ VN Engine loaded');
+  }
+
+  /**
+   * Initialize all managers in correct order
+   */
+  async initializeManagers() {
+    console.log('🔧 Creating managers...');
+    
+    // Asset Manager
+    const assetManifest = window.VN_RUNTIME_DATA?.gameData?.assets || {};
+    this.assetManager = new AssetManager(assetManifest);
+    
+    // Content Manager
+    this.contentManager = new ContentManager(this.vnEngine);
+    
+    // Save Manager
+    this.saveManager = new SaveManager(this.vnEngine);
+    
+    // Menu Manager
+    this.menuManager = new MenuManager(this.vnEngine);
+    
+    // UI Manager
+    this.uiManager = new UIManager(this.vnEngine);
+    
+    // Input Manager
+    this.inputManager = new InputManager(this.vnEngine);
+    this.inputManager.registerVNEngineHelpers();
+    
+    // Component Manager
+    this.componentManager = new ComponentManager(this.vnEngine);
+    this.componentManager.registerComponentHelpers();
+    
+    console.log('✅ All managers created');
+  }
+
+  /**
+   * Connect managers together
+   */
+  connectManagers() {
+    console.log('🔗 Connecting managers...');
+    
+    // Connect SaveManager to UI components
+    this.uiManager.setSaveManager(this.saveManager);
+    this.menuManager.setSaveManager(this.saveManager);
+    
+    // Connect InputManager to ContentManager
+    this.inputManager.setFeedManager(this.contentManager);
+    
+    // Setup VN Engine save/load integration
+    this.setupVNEngineSaveIntegration();
+    
+    console.log('✅ Managers connected');
+  }
+
+  /**
+   * Setup VN Engine save/load integration
+   */
+  setupVNEngineSaveIntegration() {
+    // Override VN Engine's save/load methods to use SaveManager
+    this.vnEngine.createSave = () => {
+      return this.saveManager.createSave();
+    };
+
+    this.vnEngine.loadSave = (saveData) => {
+      return this.saveManager.loadSave(saveData);
+    };
+
+    // Register save/load helpers
+    if (this.vnEngine.registerHelper) {
+      this.vnEngine.registerHelper('saveGame', (slotNumber) => {
+        return this.saveManager.saveGame(slotNumber);
+      });
+
+      this.vnEngine.registerHelper('loadGame', (slotNumber) => {
+        return this.saveManager.loadGame(slotNumber);
+      });
+
+      this.vnEngine.registerHelper('quickSave', () => {
+        return this.saveManager.saveGame(1);
+      });
+
+      this.vnEngine.registerHelper('quickLoad', () => {
+        return this.saveManager.loadGame(1);
+      });
+
+      this.vnEngine.registerHelper('hasSave', (slotNumber) => {
+        return this.saveManager.hasSave(slotNumber);
+      });
+    }
+  }
+
+  /**
+   * Setup centralized event handling
+   */
+  setupEventHandlers() {
+    console.log('🔧 Setting up event handlers...');
+    
+    // Continue button
+    const continueBtn = document.getElementById('vn-continue');
+    if (continueBtn) {
+      continueBtn.addEventListener('click', () => {
+        this.handleContinueClick();
+      });
+    }
+
+    // Centralized keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      this.handleKeyboardShortcuts(e);
+    });
+    
+    // Scene change events for components
+    window.addEventListener('vn-scene-changed', (event) => {
+      if (this.componentManager) {
+        this.componentManager.handleSceneChange(event.detail);
+      }
+    });
+    
+    console.log('✅ Event handlers setup');
+  }
+
+  /**
+   * Handle centralized keyboard shortcuts
+   */
+  handleKeyboardShortcuts(e) {
+    // Continue dialogue
+    if ((e.code === 'Space' || e.code === 'Enter') && !e.ctrlKey && !e.altKey) {
+      const continueBtn = document.getElementById('vn-continue');
+      if (continueBtn && continueBtn.style.display !== 'none' && !continueBtn.disabled) {
+        e.preventDefault();
+        this.handleContinueClick();
+      }
+    }
+    
+    // Quick save/load
+    if (e.code === 'KeyS' && e.ctrlKey) {
+      e.preventDefault();
+      this.saveManager.saveGame(1);
+    }
+
+    if (e.code === 'KeyL' && e.ctrlKey) {
+      e.preventDefault();
+      this.saveManager.loadGame(1);
+    }
+
+    // Menu toggle
+    if (e.code === 'Escape') {
+      this.menuManager.toggleMenu();
+    }
+    
+    // Quick scroll to bottom
+    if (e.code === 'ArrowDown' && e.ctrlKey) {
+      e.preventDefault();
+      this.contentManager?.scrollToBottom?.(true);
+    }
+  }
+
+  /**
+   * Expose clean global API
+   */
+  exposeGlobalAPI() {
+    console.log('🌐 Exposing global API...');
+    
+    // Main runtime access
+    window.vnRuntime = this;
+    window.vnEngine = this.vnEngine;
+    
+    // Clean user-facing API
+    window.vn = {
+      // Core engine access
+      engine: this.vnEngine,
+      state: this.vnEngine.gameState,
+      
+      // User actions
+      continue: () => this.handleContinueClick(),
+      save: (slot) => this.saveManager.saveGame(slot),
+      load: (slot) => this.saveManager.loadGame(slot),
+      quickSave: () => this.saveManager.saveGame(1),
+      quickLoad: () => this.saveManager.loadGame(1),
+      restart: () => this.vnEngine.restart(),
+      
+      // Variable access
+      get: (key) => this.vnEngine.getVariable(key),
+      set: (key, value) => this.vnEngine.setVariable(key, value),
+      
+      // Asset access
+      getAsset: (name) => this.assetManager.getAsset(name),
+      getAssetUrl: (name) => this.assetManager.getAssetUrl(name),
+      
+      // Debug helpers
+      debug: {
+        state: () => console.table(this.vnEngine.getGameState()),
+        saves: () => console.table(this.saveManager.getStats()),
+        managers: () => console.log(this.getDebugInfo())
+      }
+    };
+    
+    // Legacy compatibility
+    window.vnGame = this.getGameInterface();
+    
+    console.log('✅ Global API exposed');
+  }
+
+  /**
+   * Load VN Engine with proper error handling
+   */
   loadVNEngine() {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
@@ -32,28 +297,10 @@ class VNCompilerRuntime {
           try {
             const engine = await createVNEngine();
             
-            engine.on('stateChange', (result) => {
-              if (window.vnRuntime) {
-                window.vnRuntime.handleVNEngineResponse(result);
-              }
-            });
-            
-            if (window.VN_RUNTIME_DATA?.gameData?.script) {
-              // Initialize VN Engine with assets in the variable context
-              if (window.VN_RUNTIME_DATA?.gameData?.assets) {
-                // Convert asset manifest to array format that helpers expect
-                const assetArray = Object.values(window.VN_RUNTIME_DATA.gameData.assets);
-                engine.setVariable('gameAssets', assetArray);
-              }
-              
-              // Initialize variables from YAML
-              if (window.VN_RUNTIME_DATA?.gameData?.variables) {
-                Object.entries(window.VN_RUNTIME_DATA.gameData.variables).forEach(([key, value]) => {
-                  engine.setVariable(key, value);
-                });
-              }
-              
-              engine.loadScript(window.VN_RUNTIME_DATA.gameData.script);
+            // Set up asset variables if available
+            if (window.VN_RUNTIME_DATA?.gameData?.assets) {
+              const assetArray = Object.values(window.VN_RUNTIME_DATA.gameData.assets);
+              engine.setVariable('assets', assetArray);
             }
             
             resolve(engine);
@@ -68,140 +315,86 @@ class VNCompilerRuntime {
       initializeEngine();
     });
   }
-  
-  waitForVNEngineScript() {
-    return new Promise((resolve, reject) => {
-      if (typeof createVNEngine !== 'undefined') {
-        resolve();
-        return;
-      }
-      
-      const vnEngineScript = document.querySelector('script[src*="vn-engine"]');
-      if (vnEngineScript) {
-        vnEngineScript.addEventListener('load', () => {
-          if (typeof createVNEngine !== 'undefined') {
-            resolve();
-          } else {
-            reject(new Error('VN Engine script loaded but createVNEngine not found'));
-          }
-        });
-        
-        vnEngineScript.addEventListener('error', () => {
-          reject(new Error('Failed to load VN Engine script'));
-        });
-      } else {
-        if (document.readyState === 'loading') {
-          document.addEventListener('DOMContentLoaded', () => {
-            this.waitForVNEngineScript().then(resolve).catch(reject);
-          });
-        } else {
-          reject(new Error('VN Engine script not found in DOM'));
-        }
-      }
-    });
-  }
 
-  async initialize() {
-    console.log(' VN Compiler Runtime initializing...');
+  /**
+   * Start the game
+   */
+  startGame() {
+    console.log('🎮 Starting game...');
     
-    try {
-      this.vnEngine = await this.loadVNEngine();
-      
-      // Initialize AssetManager with compiled assets
-      if (window.VN_RUNTIME_DATA?.gameData?.assets) {
-        this.assetManager = new AssetManager(window.VN_RUNTIME_DATA.gameData.assets);
-      } else {
-        this.assetManager = new AssetManager({});
-      }
-      
-      this.contentManager = new ContentManager(this.vnEngine);
-      
-      this.inputManager = new InputManager(this.vnEngine);
-      
-      this.inputManager.registerVNEngineHelpers();
-      
-      this.menuManager = new MenuManager(this.vnEngine);
-      
-      this.saveManager = new SaveManager(this.vnEngine);
-      
-      this.setupEventHandlers();
-      
-      this.startGame();
-            
-    } catch (error) {
-      console.error(' Failed to initialize VN Compiler Runtime:', error);
-      this.showError('Failed to initialize game engine: ' + error.message);
-    }
-  }
-
-  startGame() {    
     this.contentManager.clearContent();
-    
     this.isStreaming = false;
     this.currentScene = null;
     
     const scenes = this.vnEngine.getAllScenes();
     
     if (!scenes || scenes.length === 0) {
-      console.error(' No scenes found in VN Engine');
+      console.error('❌ No scenes found in VN Engine');
       this.showError('No scenes found in the game script');
       return;
     }
     
+    // Get first scene
     const firstScene = scenes[0];
     const firstSceneName = firstScene.name || Object.keys(scenes)[0] || 'intro';
     
+    // Set scene title
     const formattedTitle = this.formatSceneTitle(firstSceneName);
     this.contentManager.setSceneTitle(formattedTitle);
-        
+    
     try {
+      // Start the first scene
       const result = this.vnEngine.startScene(firstSceneName);
       this.currentScene = firstSceneName;
       
       if (result) {
         this.handleVNEngineResponse(result);
-      } else {
-        console.warn(' VN Engine startScene returned no result');
       }
       
+      // Hide loading, show game
       const loadingEl = document.getElementById('vn-loading');
       const gameEl = document.getElementById('vn-game');
       
       if (loadingEl) loadingEl.style.display = 'none';
       if (gameEl) gameEl.style.display = 'flex';
       
+      console.log('✅ Game started successfully');
+      
     } catch (error) {
-      console.error(' Failed to start scene:', error);
+      console.error('❌ Failed to start scene:', error);
       this.showError('Failed to start game scene: ' + error.message);
     }
   }
 
+  /**
+   * Handle VN Engine responses
+   */
   handleVNEngineResponse(result) {
     if (!result) {
-      console.warn(' VN Engine returned empty result');
+      console.warn('⚠️ VN Engine returned empty result');
       this.isStreaming = false;
       return;
     }
     
+    // Check for scene changes
     if (this.vnEngine && typeof this.vnEngine.getCurrentScene === 'function') {
       const newScene = this.vnEngine.getCurrentScene();
       if (newScene && newScene !== this.currentScene) {
-        this.handleSceneComplete({ message: null, previousScene: this.currentScene });
-        this.currentScene = newScene;
-        const formattedTitle = this.formatSceneTitle(newScene);
-        this.contentManager.setSceneTitle(formattedTitle);
+        this.handleSceneTransition(newScene);
       }
     }
     
-    this.hideChoicePreview();
+    // Hide choice preview
+    this.contentManager.hideChoicePreview();
 
+    // Handle different response types
     switch (result.type) {
       case 'display_dialogue':
-        this.streamDialogue(result);
+        this.handleDialogue(result);
         break;
 
       case 'show_choices':
-        this.streamChoices(result);
+        this.handleChoices(result);
         break;
 
       case 'scene_complete':
@@ -209,16 +402,16 @@ class VNCompilerRuntime {
         break;
 
       case 'scene_transition':
-        this.handleSceneTransition(result);
+        this.handleSceneTransition(result.newScene);
         break;
 
       case 'error':
-        this.streamError(result);
+        this.handleError(result);
         break;
 
       default:
         console.warn('Unknown VN Engine response type:', result.type);
-        this.streamDialogue({
+        this.handleDialogue({
           speaker: 'System',
           content: 'Unknown response from game engine',
           canContinue: true
@@ -228,14 +421,10 @@ class VNCompilerRuntime {
     this.isStreaming = false;
   }
 
-  streamDialogue(dialogue) {
-    
-    const sceneTitle = this.detectSceneTitle(dialogue.content);
-    if (sceneTitle && sceneTitle !== this.currentScene) {
-      this.currentScene = sceneTitle;
-      this.contentManager.setSceneTitle(sceneTitle);
-    }
-    
+  /**
+   * Handle dialogue display
+   */
+  handleDialogue(dialogue) {
     this.contentManager.addDialogueContent(
       dialogue.speaker,
       dialogue.content,
@@ -246,26 +435,21 @@ class VNCompilerRuntime {
     );
     
     if (dialogue.canContinue) {
-      this.showContinueButton();
+      this.contentManager.showActionBar();
     } else {
-      this.hideContinueButton();
+      this.contentManager.hideActionBar();
     }
-    
   }
 
-  streamChoices(choiceData) {
-    this.hideContinueButton();
+  /**
+   * Handle choice display
+   */
+  handleChoices(choiceData) {
+    this.contentManager.hideActionBar();
     
-    this.showChoices(choiceData.content, choiceData.choices, {
-      allowMultiple: choiceData.allowMultiple || false,
-      timeout: choiceData.timeout || null
-    });
-  }
-
-  showChoices(prompt, choices, options = {}) {    
     const choicesContainer = document.getElementById('vn-choices');
     if (!choicesContainer) {
-      console.error(' Choices container (#vn-choices) not found');
+      console.error('❌ Choices container not found');
       return;
     }
 
@@ -276,21 +460,23 @@ class VNCompilerRuntime {
     
     choicesContainer.innerHTML = '';
     
-    if (prompt && prompt.trim()) {
+    // Add prompt if provided
+    if (choiceData.content && choiceData.content.trim()) {
       const promptElement = document.createElement('div');
       promptElement.className = 'vn-choice-prompt';
-      promptElement.textContent = prompt;
+      promptElement.textContent = choiceData.content;
       choicesContainer.appendChild(promptElement);
     }
     
-    choices.forEach((choice, index) => {
+    // Add choice buttons
+    choiceData.choices.forEach((choice, index) => {
       const button = document.createElement('button');
       button.className = 'vn-choice-button';
       button.textContent = choice.text || choice;
       button.setAttribute('data-choice-index', index);
       
       button.addEventListener('click', () => {
-        this.handleChoiceSelection(index, choice);
+        this.handleChoiceSelection(index);
       });
       
       choicesContainer.appendChild(button);
@@ -299,8 +485,10 @@ class VNCompilerRuntime {
     choicesContainer.style.display = 'flex';
   }
 
-  handleChoiceSelection(choiceIndex, choice) {
-    
+  /**
+   * Handle choice selection
+   */
+  handleChoiceSelection(choiceIndex) {
     const choicesContainer = document.getElementById('vn-choices');
     if (choicesContainer) {
       const buttons = choicesContainer.querySelectorAll('.vn-choice-button');
@@ -328,19 +516,36 @@ class VNCompilerRuntime {
     }
   }
 
-  streamError(error) {
-    console.error(' VN Engine error:', error);
+  /**
+   * Handle scene transitions
+   */
+  handleSceneTransition(newScene) {
+    const oldScene = this.currentScene;
+    this.currentScene = newScene;
     
-    this.contentManager.addDialogueContent(
-      'System Error',
-      error.message || 'An unknown error occurred',
-      { canContinue: false }
-    );
+    // Update scene title
+    const formattedTitle = this.formatSceneTitle(newScene);
+    this.contentManager.setSceneTitle(formattedTitle);
     
-    this.contentManager.hideActionBar();
+    // Update background if UI manager is available
+    if (this.uiManager) {
+      this.uiManager.changeBackgroundForScene(newScene);
+    }
+    
+    // Dispatch scene change event
+    window.dispatchEvent(new CustomEvent('vn-scene-changed', {
+      detail: { 
+        sceneId: newScene,
+        previousScene: oldScene,
+        timestamp: Date.now()
+      }
+    }));
   }
 
-  handleSceneComplete(sceneData) {    
+  /**
+   * Handle scene completion
+   */
+  handleSceneComplete(sceneData) {
     this.currentScene = null;
     
     if (sceneData.message) {
@@ -354,173 +559,50 @@ class VNCompilerRuntime {
     this.contentManager.showActionBar();
   }
 
-  handleSceneTransition(transitionData) {
-    console.log(' Scene transition:', transitionData);
+  /**
+   * Handle errors
+   */
+  handleError(error) {
+    console.error('❌ VN Engine error:', error);
     
-    this.currentScene = transitionData.newScene;
+    this.contentManager.addDialogueContent(
+      'System Error',
+      error.message || 'An unknown error occurred',
+      { canContinue: false }
+    );
     
-    if (transitionData.newScene) {
-      this.contentManager.setSceneTitle(transitionData.newScene);
-    }
-    
-    this.contentManager.clearContent();
-    
-    if (transitionData.message) {
-      this.contentManager.addDialogueContent(
-        transitionData.speaker || 'System',
-        transitionData.message,
-        { canContinue: true }
-      );
-    }
-    
-    this.contentManager.showActionBar();
-  }
-
-  detectSceneTitle(content) {
-    if (!content || typeof content !== 'string') return null;
-    
-    const chapterMatch = content.match(/^(Chapter\s+\d+.*|Scene\s+\d+.*|Act\s+\d+.*)/i);
-    if (chapterMatch) {
-      return chapterMatch[1];
-    }
-    
-    const headerMatch = content.match(/^#\s+(.+)/m);
-    if (headerMatch) {
-      return headerMatch[1];
-    }
-    
-    return null;
-  }
-
-  showContinueButton() {
-    this.contentManager.showActionBar();
-  }
-
-  hideContinueButton() {
     this.contentManager.hideActionBar();
   }
 
-  showChoicePreview() {
-    this.contentManager.showChoicePreview();
-  }
-
-  hideChoicePreview() {
-    this.contentManager.hideChoicePreview();
-  }
-
-  setupEventHandlers() {
-    const continueBtn = document.getElementById('vn-continue');
-    if (continueBtn) {
-      continueBtn.addEventListener('click', () => {
-        this.handleContinueClick();
-      });
-    }
-
-    const saveBtn = document.getElementById('vn-save-quick');
-    if (saveBtn) {
-      saveBtn.addEventListener('click', () => this.saveGame());
-    }
-
-    const menuBtn = document.getElementById('vn-settings');
-    if (menuBtn) {
-      menuBtn.addEventListener('click', () => this.showMenu());
-    }
-    
-    document.addEventListener('keydown', (e) => {
-      this.handleKeyboardShortcuts(e);
-    });
-  }
-  
-  handleKeyboardShortcuts(e) {
-    if ((e.code === 'Space' || e.code === 'Enter') && !e.ctrlKey && !e.altKey) {
-      const continueBtn = document.getElementById('vn-continue');
-      if (continueBtn && continueBtn.style.display !== 'none' && !continueBtn.disabled) {
-        e.preventDefault();
-        this.handleContinueClick();
-      }
-    }
-    
-    if (e.code === 'ArrowDown' && e.ctrlKey) {
-      e.preventDefault();
-      this.contentManager?.scrollToBottom(true);
-    }
-  }
-  
+  /**
+   * Handle continue button click
+   */
   handleContinueClick() {
+    if (this.isStreaming) return;
+    
+    this.isStreaming = true;
     const result = this.vnEngine.continue();
     this.handleVNEngineResponse(result);
   }
-  
-  showScrollIndicator() {
-    const indicator = document.getElementById('vn-scroll-indicator');
-    if (indicator) {
-      indicator.style.display = 'block';
-      setTimeout(() => {
-        indicator.style.display = 'none';
-      }, 2000);
-    }
+
+  /**
+   * Format scene title for display
+   */
+  formatSceneTitle(sceneName) {
+    if (!sceneName) return 'Untitled Scene';
+    
+    return sceneName
+      .replace(/[_-]/g, ' ')
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
   }
 
-  saveGame() {
-    if (this.saveManager) {
-      this.saveManager.showSaveModal();
-    } else {
-      try {
-        const gameState = this.vnEngine.getGameState();
-        const saveData = {
-          version: '1.0.0',
-          timestamp: Date.now(),
-          gameState: gameState,
-          currentScene: this.currentScene
-        };
-        
-        localStorage.setItem('vn-quicksave', JSON.stringify(saveData));
-        console.log(' Game saved (quick save)');
-        this.showMessage('Game saved successfully!', 'success');
-      } catch (error) {
-        console.error(' Save failed:', error);
-        this.showMessage('Failed to save game', 'error');
-      }
-    }
-  }
-
-  loadGame() {
-    if (this.saveManager) {
-      this.saveManager.showLoadModal();
-    } else {
-      try {
-        const saveData = localStorage.getItem('vn-quicksave');
-        if (saveData) {
-          const parsed = JSON.parse(saveData);
-          
-          this.vnEngine.setGameState(parsed.gameState);
-          
-          if (parsed.currentScene) {
-            this.currentScene = parsed.currentScene;
-          }
-          
-          console.log(' Game loaded (quick save)');
-          this.showMessage('Game loaded successfully!', 'success');
-          
-          this.startGame();
-        } else {
-          this.showMessage('No save data found', 'warning');
-        }
-      } catch (error) {
-        console.error(' Load failed:', error);
-        this.showMessage('Failed to load game', 'error');
-      }
-    }
-  }
-
-  showMenu() {
-    if (this.menuManager) {
-      this.menuManager.openMenu();
-    }
-  }
-
+  /**
+   * Show error message
+   */
   showError(message) {
-    console.error(' VN Error:', message);
+    console.error('❌ VN Error:', message);
     
     const contentElement = document.getElementById('vn-content');
     if (contentElement) {
@@ -549,178 +631,109 @@ class VNCompilerRuntime {
     }
   }
 
+  /**
+   * Show user message
+   */
+  showMessage(message, type = 'info') {
+    if (this.uiManager) {
+      this.uiManager.showNotification(message, type);
+    } else {
+      console.log(`📢 ${type.toUpperCase()}: ${message}`);
+    }
+  }
+
+  /**
+   * Escape HTML for safety
+   */
   escapeHTML(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
   }
 
-  showMessage(message, type = 'info') {
-    let messageEl = document.getElementById('vn-message');
-    if (!messageEl) {
-      messageEl = document.createElement('div');
-      messageEl.id = 'vn-message';
-      messageEl.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        padding: 12px 20px;
-        border-radius: 8px;
-        z-index: 9000;
-        font-weight: 500;
-        opacity: 0;
-        transition: opacity 0.3s ease;
-        backdrop-filter: blur(10px);
-      `;
-      document.body.appendChild(messageEl);
-    }
-
-    messageEl.textContent = message;
-    messageEl.className = `vn-message vn-message-${type}`;
-    
-    const colors = {
-      success: { bg: 'rgba(0, 255, 128, 0.2)', border: 'rgba(0, 255, 128, 0.4)', text: '#00ff80' },
-      error: { bg: 'rgba(255, 0, 0, 0.2)', border: 'rgba(255, 0, 0, 0.4)', text: '#ff6b6b' },
-      warning: { bg: 'rgba(255, 193, 7, 0.2)', border: 'rgba(255, 193, 7, 0.4)', text: '#ffc107' },
-      info: { bg: 'rgba(0, 212, 255, 0.2)', border: 'rgba(0, 212, 255, 0.4)', text: '#00d4ff' }
-    };
-    
-    const color = colors[type] || colors.info;
-    messageEl.style.backgroundColor = color.bg;
-    messageEl.style.borderColor = color.border;
-    messageEl.style.color = color.text;
-    messageEl.style.border = `1px solid ${color.border}`;
-
-    messageEl.style.opacity = '1';
-
-    setTimeout(() => {
-      messageEl.style.opacity = '0';
-    }, 3000);
-  }
-
+  /**
+   * Get game interface for legacy compatibility
+   */
   getGameInterface() {
     return {
-      continue: () => {
-        this.handleContinueClick();
-      },
-      makeChoice: (index) => {
-        console.log(`Choice ${index} handled by content manager`);
-      },
-      save: () => this.saveGame(),
-      load: () => this.loadGame(),
+      // Core actions
+      continue: () => this.handleContinueClick(),
+      save: (slot) => this.saveManager.saveGame(slot),
+      load: (slot) => this.saveManager.loadGame(slot),
+      quickSave: () => this.saveManager.saveGame(1),
+      quickLoad: () => this.saveManager.loadGame(1),
+      restart: () => this.vnEngine.restart(),
       
+      // Variable access
       getVariable: (key) => this.vnEngine.getVariable(key),
       setVariable: (key, value) => this.vnEngine.setVariable(key, value),
       
-      setStoryFlag: (flagName) => this.vnEngine.gameState?.setStoryFlag(flagName),
-      hasStoryFlag: (flagName) => this.vnEngine.gameState?.hasStoryFlag(flagName),
-      
-      getChoiceHistory: () => this.vnEngine.gameState?.getChoiceHistory() || [],
-      playerChose: (choiceText, scene = null) => {
-        const history = this.vnEngine.gameState?.getChoiceHistory() || [];
-        return history.some(choice => 
-          choice.choiceText === choiceText && 
-          (scene === null || choice.scene === scene)
-        );
-      },
-      
-      setPlayerData: (data) => {
-        this.vnEngine.setVariable('player', data);
-      },
-      getPlayerData: () => {
-        return this.vnEngine.getVariable('player') || {};
-      },
-      updatePlayerStats: (stats) => {
-        const player = this.vnEngine.getVariable('player') || {};
-        player.stats = { ...player.stats, ...stats };
-        this.vnEngine.setVariable('player', player);
-      },
-      
+      // Game state
       getGameState: () => this.vnEngine.getGameState(),
       setGameState: (state) => this.vnEngine.setGameState(state),
       
+      // Scene management
       getCurrentScene: () => this.currentScene || this.vnEngine.getCurrentScene(),
-      goToScene: (sceneName) => {
-        const result = this.vnEngine.goToScene(sceneName);
-        this.handleVNEngineResponse(result);
-        return result;
-      },
-      restart: () => {
-        this.contentManager?.clearContent();
-        const result = this.vnEngine.restart();
+      startScene: (sceneName) => {
+        const result = this.vnEngine.startScene(sceneName);
         this.handleVNEngineResponse(result);
         return result;
       },
       
-      clearContent: () => this.contentManager?.clearContent(),
-      scrollToBottom: () => this.contentManager?.scrollToBottom(true),
-      setAutoScroll: (enabled) => this.contentManager?.setAutoScroll(enabled),
+      // Asset access
+      getAsset: (name) => this.assetManager.getAsset(name),
+      getAssetUrl: (name) => this.assetManager.getAssetUrl(name),
       
-      getHelperStatus: () => {
-        const handlebarsPath = this.vnEngine?.templateManager?.handlebars ? 
-          'templateManager.handlebars' : 
-          (window.vnHandlebars ? 'window.vnHandlebars' : 'not found');
-          
-        return {
-          registered: this.helpersRegistered,
-          handlebarsPath: handlebarsPath,
-          handlebarsAvailable: !!(this.vnEngine?.templateManager?.handlebars || window.vnHandlebars),
-          helperCount: this.vnEngine?.templateManager?.handlebars?.helpers ? 
-            Object.keys(this.vnEngine.templateManager.handlebars.helpers).length : 0,
-          templateEngine: this.vnEngine.getTemplateEngineInfo ? this.vnEngine.getTemplateEngineInfo() : 'unknown',
-          gameState: this.vnEngine.getGameState(),
-          variables: this.vnEngine.getGameState()?.variables || {},
-          storyFlags: this.vnEngine.gameState?.getAllStoryFlags?.() || [],
-          choiceHistory: this.vnEngine.gameState?.getChoiceHistory() || []
-        };
-      },
+      // Save info
+      hasSave: (slot) => this.saveManager.hasSave(slot),
+      getSaveInfo: (slot) => this.saveManager.getSaveInfo(slot),
       
-      getAsset: (name) => this.assetManager?.getAsset(name),
-      getAssetUrl: (name) => this.assetManager?.getAssetUrl(name),
-      isAssetLoaded: (name) => this.assetManager?.isLoaded(name),
-      preloadAsset: (name) => this.assetManager?.preload(name),
-      getAssetInfo: (name) => this.assetManager?.getAssetInfo(name),
-      getAllAssets: () => this.assetManager?.getAllAssets() || {}
+      // Debug info
+      getHelperStatus: () => this.getDebugInfo()
     };
   }
-  
+
+  /**
+   * Get debug information
+   */
+  getDebugInfo() {
+    return {
+      initialized: this.initialized,
+      currentScene: this.currentScene,
+      vnEngine: !!this.vnEngine,
+      managers: {
+        assetManager: !!this.assetManager,
+        contentManager: !!this.contentManager,
+        saveManager: !!this.saveManager,
+        menuManager: !!this.menuManager,
+        uiManager: !!this.uiManager,
+        inputManager: !!this.inputManager,
+        componentManager: !!this.componentManager
+      },
+      gameState: this.vnEngine?.getGameState?.(),
+      saveStats: this.saveManager?.getStats?.()
+    };
+  }
+
+  /**
+   * Get VN Engine
+   */
   getVNEngine() {
     return this.vnEngine;
   }
-  
+
+  /**
+   * Get Content Manager
+   */
   getContentManager() {
     return this.contentManager;
   }
 
+  /**
+   * Get Feed Manager (alias for content manager)
+   */
   getFeedManager() {
     return this.contentManager;
-  }
-
-  setInputManager(inputManager) {
-    this.inputManager = inputManager;
-  }
-
-  setUIManager(uiManager) {
-    this.uiManager = uiManager;
-  }
-
-  setMenuManager(menuManager) {
-    this.menuManager = menuManager;
-  }
-
-  setSaveManager(saveManager) {
-    this.saveManager = saveManager;
-  }
-
-  formatSceneTitle(sceneName) {
-    if (!sceneName) return 'Untitled Scene';
-    
-    // Convert snake_case or kebab-case to Title Case
-    return sceneName
-      .replace(/[_-]/g, ' ')
-      .split(' ')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join(' ');
   }
 }
 

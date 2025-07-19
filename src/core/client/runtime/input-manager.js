@@ -29,124 +29,6 @@ class InputManager {
     });
   }
 
-  processNewContent(containerElement) {
-    const inputPattern = /\{\{input:([^:}]+):([^:}]*):([^:}]*):?([^}]*)\}\}/g;
-    
-    if (containerElement.innerHTML) {
-      let match;
-      let updatedHTML = containerElement.innerHTML;
-      
-      while ((match = inputPattern.exec(containerElement.innerHTML)) !== null) {
-        const [fullMatch, varName, placeholder, inputType, options] = match;
-        const inputHTML = this.createInputHelper(varName.trim(), placeholder.trim(), inputType.trim(), options);
-        updatedHTML = updatedHTML.replace(fullMatch, inputHTML);
-      }
-      
-      if (updatedHTML !== containerElement.innerHTML) {
-        containerElement.innerHTML = updatedHTML;
-        
-        setTimeout(() => {
-          this.bindDynamicInputHelpers(containerElement);
-        }, 50);
-      }
-    }
-  }
-  
-  createInputHelper(varName, placeholder, inputType = 'text', options = '') {
-    this.helperCounter++;
-    const inputId = `input-${varName}-${this.helperCounter}`;
-    let currentValue = this.vnEngine.getVariable(varName);
-    
-    if (currentValue === undefined || currentValue === null) {
-      currentValue = this.getDefaultValue(inputType, options);
-      this.vnEngine.setVariable(varName, currentValue);
-    }
-    
-    let inputHTML;
-    const normalizedType = inputType.toLowerCase();
-    
-    switch (normalizedType) {
-      case 'text': {
-        inputHTML = `<input type="text" id="${inputId}" data-var="${varName}" data-type="text" class="vn-input" placeholder="${placeholder}" value="${this.escapeHTML(currentValue)}" aria-label="${placeholder || varName}">`;
-        break;
-      }
-        
-      case 'number': {
-        const numOptions = this.parseOptions(options);
-        inputHTML = `<input type="number" id="${inputId}" data-var="${varName}" data-type="number" class="vn-input" placeholder="${placeholder}" value="${currentValue}" ${numOptions.min !== undefined ? `min="${numOptions.min}"` : ''} ${numOptions.max !== undefined ? `max="${numOptions.max}"` : ''} ${numOptions.step !== undefined ? `step="${numOptions.step}"` : ''} aria-label="${placeholder || varName}">`;
-        break;
-      } 
-      case 'select': {
-        const selectOptions = this.parseSelectOptions(options);
-        const placeholderOption = (!currentValue && placeholder && selectOptions.length === 0) ? 
-          `<option value="" disabled selected>${placeholder}</option>` : '';
-        const optionsHTML = selectOptions.map(opt => 
-          `<option value="${this.escapeHTML(opt.value)}" ${opt.value === currentValue ? 'selected' : ''}>${this.escapeHTML(opt.label)}</option>`
-        ).join('');
-        inputHTML = `<select id="${inputId}" data-var="${varName}" data-type="select" class="vn-select" aria-label="${placeholder || varName}">${placeholderOption}${optionsHTML}</select>`;
-        break;
-      }
-      case 'checkbox': {
-        inputHTML = `<label class="vn-input-group" for="${inputId}"><input type="checkbox" id="${inputId}" data-var="${varName}" data-type="checkbox" class="vn-input" ${currentValue ? 'checked' : ''} aria-describedby="${inputId}-desc"> <span id="${inputId}-desc">${placeholder}</span></label>`;
-        break;
-      }
-        
-      case 'textarea': {
-        inputHTML = `<textarea id="${inputId}" data-var="${varName}" data-type="textarea" class="vn-textarea" placeholder="${placeholder}" aria-label="${placeholder || varName}" rows="3">${this.escapeHTML(currentValue)}</textarea>`;
-        break;
-      }
-        
-      case 'range': {
-        const rangeOptions = this.parseOptions(options);
-        const minVal = rangeOptions.min !== undefined ? rangeOptions.min : 0;
-        const maxVal = rangeOptions.max !== undefined ? rangeOptions.max : 100;
-        const stepVal = rangeOptions.step !== undefined ? rangeOptions.step : 1;
-        const currentVal = currentValue || minVal;
-        inputHTML = `
-          <div class="vn-range-container">
-            <input type="range" id="${inputId}" data-var="${varName}" data-type="range" class="vn-input" value="${currentVal}" min="${minVal}" max="${maxVal}" step="${stepVal}" aria-label="${placeholder || varName}" aria-describedby="${inputId}-value">
-            <output id="${inputId}-value" class="vn-range-value" for="${inputId}">${currentVal}</output>
-          </div>
-        `;
-        break;
-      }
-      case 'radio': {
-        const radioOptions = this.parseSelectOptions(options);
-        inputHTML = `<fieldset class="vn-radio-group" role="radiogroup" aria-labelledby="${inputId}-legend">
-          <legend id="${inputId}-legend" class="vn-radio-legend">${placeholder}</legend>`;
-        radioOptions.forEach((opt, index) => {
-          const radioId = `${inputId}-${index}`;
-          const checked = opt.value === currentValue ? 'checked' : '';
-          inputHTML += `
-            <label class="vn-radio-label" for="${radioId}">
-              <input type="radio" id="${radioId}" name="${varName}" value="${this.escapeHTML(opt.value)}" data-var="${varName}" data-type="radio" class="vn-input vn-radio" ${checked}>
-              <span class="vn-radio-text">${this.escapeHTML(opt.label)}</span>
-            </label>
-          `;
-        });
-        inputHTML += `</fieldset>`;
-        break;
-      }
-      default: {
-        inputHTML = `<input type="text" id="${inputId}" data-var="${varName}" data-type="text" class="vn-input" placeholder="${placeholder}" value="${this.escapeHTML(currentValue)}" aria-label="${placeholder || varName}">`;
-      }
-    }
-    
-    return `<div class="vn-input-container" role="group" aria-labelledby="${inputId}-label">
-      ${placeholder && normalizedType !== 'checkbox' && normalizedType !== 'radio' ? `<label id="${inputId}-label" class="vn-input-label" for="${inputId}">${placeholder}</label>` : ''}
-      ${inputHTML}
-    </div>`;
-  }
-  
-  createInputEntryForFeed(label, inputConfig) {
-    if (!this.feedManager) {
-      console.warn('⚠️ Feed Manager not available for input entry');
-      return this.createInputHelper(inputConfig.varName, label, inputConfig.type, inputConfig.options);
-    }
-    
-    return this.feedManager.addInputEntry(label, inputConfig);
-  }
-
   parseOptions(optionsString) {
     const options = {};
     if (optionsString) {
@@ -177,65 +59,104 @@ class InputManager {
     });
   }
 
-  bindDynamicInputHelpers(containerElement) {
-    const inputs = containerElement.querySelectorAll('[data-var]:not([data-bound])');
-    inputs.forEach(element => {
-      const varName = element.getAttribute('data-var');
-      const inputType = element.getAttribute('data-type') || 'text';
-      
-      if (!this.inputElements.has(element.id)) {
-        this.bindInputElement(element, varName, inputType);
-        element.setAttribute('data-bound', 'true');
+  handleButtonClick(buttonElement, varName) {
+    if (buttonElement.disabled || buttonElement.querySelector('.vn-button-spinner')) {
+      return;
+    }
+    
+    const action = buttonElement.getAttribute('data-action');
+    const scene = buttonElement.getAttribute('data-scene');
+    const setVar = buttonElement.getAttribute('data-set-var');
+    const callFunc = buttonElement.getAttribute('data-call');
+    const needsConfirm = buttonElement.getAttribute('data-confirm') === 'true';
+    const confirmText = buttonElement.getAttribute('data-confirm-text');
+    
+    if (needsConfirm && !confirm(confirmText)) {
+      return;
+    }
+    
+    this.setButtonLoading(buttonElement, true);
+    
+    try {
+      if (scene) {
+        console.log(`🎬 Loading scene: ${scene}`);
+        if (this.vnEngine.startScene) {
+          this.vnEngine.startScene(scene);
+        } else if (window.vnRuntime && window.vnRuntime.vnEngine.startScene) {
+          window.vnRuntime.vnEngine.startScene(scene);
+        }
       }
-    });
+      
+      if (setVar) {
+        const [variable, value] = setVar.split(':');
+        if (variable && value !== undefined) {
+          console.log(`📝 Setting variable: ${variable} = ${value}`);
+          this.vnEngine.setVariable(variable.trim(), value.trim());
+        }
+      }
+      
+      if (callFunc) {
+        console.log(`📞 Calling function: ${callFunc}`);
+        if (window[callFunc] && typeof window[callFunc] === 'function') {
+          window[callFunc](buttonElement, varName);
+        } else if (this.vnEngine[callFunc] && typeof this.vnEngine[callFunc] === 'function') {
+          this.vnEngine[callFunc](buttonElement, varName);
+        } else {
+          console.warn(`⚠️ Function not found: ${callFunc}`);
+        }
+      }
+      
+      if (action) {
+        console.log(`⚡ Executing action: ${action}`);
+        window.dispatchEvent(new CustomEvent('vn-button-action', {
+          detail: {
+            action: action,
+            button: buttonElement,
+            varName: varName,
+            element: buttonElement
+          }
+        }));
+      }
+      
+      this.vnEngine.setVariable(varName, Date.now());
+      
+      if (this.liveRegion) {
+        this.liveRegion.textContent = `${buttonElement.textContent} activated`;
+      }
+      
+    } catch (error) {
+      console.error('❌ Button action failed:', error);
+    } finally {
+      setTimeout(() => {
+        this.setButtonLoading(buttonElement, false);
+      }, 300);
+    }
   }
 
-  bindInputElement(element, varName, inputType) {
-    const updateValue = () => {
-      const value = this.getInputValue(element, inputType);
-      const oldValue = this.vnEngine.getVariable(varName);
-      
-      this.vnEngine.setVariable(varName, value);
-      console.log(`📝 Variable updated: ${varName} = ${value}`);
-      
-      if (inputType === 'range') {
-        const output = document.getElementById(`${element.id}-value`);
-        if (output) {
-          output.textContent = value;
-        }
+  setButtonLoading(buttonElement, loading) {
+    if (loading) {
+      buttonElement.disabled = true;
+      if (!buttonElement.querySelector('.vn-button-spinner')) {
+        const spinner = document.createElement('span');
+        spinner.className = 'vn-button-spinner';
+        buttonElement.insertBefore(spinner, buttonElement.firstChild);
       }
-      
-      if (this.liveRegion && oldValue !== value) {
-        this.liveRegion.textContent = `${varName} updated to ${value}`;
-      }
-      
-      if (this.shouldValidate(element)) {
-        this.validateAndUpdateElement(element, value);
-      }
-    };
-
-    if (inputType === 'checkbox' || inputType === 'radio') {
-      element.addEventListener('change', updateValue);
+      buttonElement.classList.add('vn-button-loading');
     } else {
-      element.addEventListener('input', updateValue);
-      element.addEventListener('change', updateValue);
+      buttonElement.disabled = false;
+      const spinner = buttonElement.querySelector('.vn-button-spinner');
+      if (spinner) {
+        spinner.remove();
+      }
+      buttonElement.classList.remove('vn-button-loading');
     }
-    
-    if (inputType === 'range') {
-      element.addEventListener('input', () => {
-        const output = document.getElementById(`${element.id}-value`);
-        if (output) {
-          output.textContent = element.value;
-        }
-      });
-    }
-
-    this.inputElements.set(element.id, { element, varName, inputType });
-    
-    this.enhanceAccessibility(element, inputType);
   }
   
   enhanceAccessibility(element, inputType) {
+    if (inputType === 'button') {
+      return;
+    }
+    
     element.setAttribute('aria-describedby', `${element.id}-help`);
     
     const helpText = document.createElement('div');
@@ -244,11 +165,12 @@ class InputManager {
     helpText.style.cssText = 'font-size: 0.875rem; color: rgba(255, 255, 255, 0.6); margin-top: 4px;';
     
     switch (inputType) {
-      case 'range':
+      case 'range': {
         const min = element.getAttribute('min') || '0';
         const max = element.getAttribute('max') || '100';
         helpText.textContent = `Use arrow keys or drag to adjust value between ${min} and ${max}`;
         break;
+      }
       case 'select':
         helpText.textContent = 'Use arrow keys to navigate options, Enter to select';
         break;
@@ -259,7 +181,7 @@ class InputManager {
         helpText.textContent = 'Use arrow keys to select option';
         break;
       default:
-        helpText.textContent = 'Press Tab to move to next field';
+        helpText.textContent = '';
     }
     
     element.parentNode.appendChild(helpText);
@@ -357,13 +279,38 @@ class InputManager {
       }
       
       this.vnEngine.setVariable(config.varName, value);
+      
+      if (config.type === 'range') {
+        const output = document.getElementById(`${element.id}-value`);
+        if (output) {
+          output.textContent = value;
+        }
+      }
+      
+      if (this.liveRegion && config.type !== 'button') {
+        this.liveRegion.textContent = `${config.varName} updated to ${value}`;
+      }
     };
 
     if (config.type === 'checkbox' || config.type === 'radio') {
       element.addEventListener('change', updateValue);
+    } else if (config.type === 'button') {
+      element.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.handleButtonClick(element, config.varName);
+      });
     } else {
       element.addEventListener('input', updateValue);
       element.addEventListener('change', updateValue);
+    }
+    
+    if (config.type === 'range') {
+      element.addEventListener('input', () => {
+        const output = document.getElementById(`${element.id}-value`);
+        if (output) {
+          output.textContent = element.value;
+        }
+      });
     }
 
     const currentValue = this.vnEngine.getVariable(config.varName);
@@ -372,7 +319,10 @@ class InputManager {
     }
 
     this.inputElements.set(config.id, { element, config });
+    
+    //this.enhanceAccessibility(element, config.type);
   }
+
 
   getInputValue(element, inputType) {
     switch (inputType) {
@@ -403,8 +353,15 @@ class InputManager {
         if (radioElement) radioElement.checked = true;
         break;
       }
+      case 'button':
+        if (value && element.disabled) {
+          element.disabled = false;
+        }
+        break;
       default:
-        element.value = value;
+        if (element.value !== undefined) {
+          element.value = value;
+        }
         break;
     }
   }
@@ -483,6 +440,52 @@ class InputManager {
     this.helperCounter = 0;
   }
 
+  getButtonClasses(buttonOptions) {
+    const classes = ['vn-button'];
+    
+    switch (buttonOptions.type) {
+      case 'primary':
+        classes.push('vn-button-primary');
+        break;
+      case 'secondary':
+        classes.push('vn-button-secondary');
+        break;
+      case 'menu':
+        classes.push('vn-menu-button');
+        break;
+      case 'choice':
+        classes.push('vn-choice-button');
+        break;
+      case 'custom':
+        break;
+      default:
+        classes.push('vn-button-primary');
+    }
+    
+    if (buttonOptions.size === 'large') {
+      classes.push('vn-button-large');
+    }
+    
+    // Add any custom classes
+    if (buttonOptions.className) {
+      classes.push(...buttonOptions.className.split(' '));
+    }
+    
+    return classes.join(' ');
+  }
+
+
+  getIconHTML(icon) {
+    if (icon.startsWith('&#') || icon.length === 1) {
+      return `<span class="vn-button-icon">${icon}</span>`;
+    } else if (icon.includes('<svg')) {
+      return icon;
+    } else {
+      return `<i class="vn-button-icon ${icon}"></i>`;
+    }
+  }
+
+
   /**
    * Register input helpers with VN Engine for Handlebars template processing
    */
@@ -508,9 +511,23 @@ class InputManager {
         options: (typeof options === 'string') ? options : ''
       };
             
-      setTimeout(() => {
-        this.bindInputHelper(config);
-      }, 200);
+      // Use DOM observer to bind input helper when element is ready
+      if (window.domObserver) {
+        window.domObserver.waitForElementById(config.id, () => {
+          this.bindInputHelper(config);
+        });
+      } else {
+        // Fallback to requestAnimationFrame if DOM observer not available
+        const checkForInput = () => {
+          const inputElement = document.getElementById(config.id);
+          if (inputElement) {
+            this.bindInputHelper(config);
+          } else {
+            requestAnimationFrame(checkForInput);
+          }
+        };
+        requestAnimationFrame(checkForInput);
+      }
       
       const html = this.createInputHTML(config);
       
@@ -533,22 +550,22 @@ class InputManager {
       
       return html;
     });
-
+    const handlebars = this.vnEngine.templateManager.handlebars;
     this.vnEngine.registerHelper('textInput', (name, prompt, defaultValue) => {
-      return this.vnEngine.helpers.input(name, prompt, 'text', defaultValue);
+      return handlebars.helpers.input(name, prompt, 'text', defaultValue);
     });
 
     this.vnEngine.registerHelper('selectInput', (name, prompt, options) => {
-      return this.vnEngine.helpers.input(name, prompt, 'select', options);
+      return handlebars.helpers.input(name, prompt, 'select', options);
     });
 
     this.vnEngine.registerHelper('checkboxInput', (name, prompt) => {
-      return this.vnEngine.helpers.input(name, prompt, 'checkbox', '');
+      return handlebars.helpers.input(name, prompt, 'checkbox', '');
     });
 
     this.vnEngine.registerHelper('numberInput', (name, prompt, min, max) => {
       const options = min !== undefined ? `min:${min}` + (max !== undefined ? `,max:${max}` : '') : '';
-      return this.vnEngine.helpers.input(name, prompt, 'number', options);
+      return handlebars.helpers.input(name, prompt, 'number', options);
     });
 
   }
@@ -569,7 +586,7 @@ class InputManager {
         </div>`;
         
       case 'number':
-      case 'range':
+      case 'range':{
         const numOptions = this.parseOptions(options);
         const min = numOptions.min !== undefined ? `min="${numOptions.min}"` : '';
         const max = numOptions.max !== undefined ? `max="${numOptions.max}"` : '';
@@ -578,20 +595,20 @@ class InputManager {
           <label for="${id}">${this.escapeHTML(prompt)}</label>
           <input type="${type}" id="${id}" name="${varName}" class="vn-input" ${min} ${max} ${step} />
         </div>`;
-        
-      case 'select':
+      }
+      case 'select':{
         const selectOptions = this.parseSelectOptions(options);
         const optionsHTML = selectOptions.map(opt => 
-          `<option value="${this.escapeHTML(opt.value)}">${this.escapeHTML(opt.text)}</option>`
+          `<option value="${this.escapeHTML(opt.value)}">${this.escapeHTML(opt.label)}</option>`
         ).join('');
         return `<div class="vn-input-group">
           <label for="${id}">${this.escapeHTML(prompt)}</label>
-          <select id="${id}" name="${varName}" class="vn-input">
+          <select id="${id}" name="${varName}" class="vn-select">
             <option value="">Choose...</option>
             ${optionsHTML}
           </select>
         </div>`;
-        
+      }
       case 'checkbox':
         return `<div class="vn-input-group vn-checkbox-group">
           <label for="${id}">
@@ -600,12 +617,12 @@ class InputManager {
           </label>
         </div>`;
         
-      case 'radio':
+      case 'radio':{
         const radioOptions = this.parseSelectOptions(options);
         const radioHTML = radioOptions.map((opt, index) => 
           `<label for="${id}-${index}">
             <input type="radio" id="${id}-${index}" name="${varName}" value="${this.escapeHTML(opt.value)}" class="vn-radio" />
-            ${this.escapeHTML(opt.text)}
+            ${this.escapeHTML(opt.label)}
           </label>`
         ).join('');
         return `<div class="vn-input-group vn-radio-group">
@@ -614,6 +631,31 @@ class InputManager {
             ${radioHTML}
           </fieldset>
         </div>`;
+      }
+      case 'button': {
+        const buttonOptions = this.parseOptions(options); // Use existing parseOptions method
+        const buttonClasses = this.getButtonClasses(buttonOptions);
+        const iconHTML = buttonOptions.icon ? this.getIconHTML(buttonOptions.icon) : '';
+        const loadingHTML = buttonOptions.loading === 'true' ? '<span class="vn-button-spinner"></span>' : '';
+        
+        return `<button type="button" id="${id}" 
+          data-var="${varName}" 
+          data-type="button" 
+          class="${buttonClasses}"
+          data-action="${buttonOptions.action || ''}"
+          data-scene="${buttonOptions.scene || ''}"
+          data-set-var="${buttonOptions.setVar || ''}"
+          data-call="${buttonOptions.call || ''}"
+          data-confirm="${buttonOptions.confirm || 'false'}"
+          data-confirm-text="${buttonOptions.confirmText || 'Are you sure?'}"
+          ${buttonOptions.disabled === 'true' ? 'disabled' : ''}
+          ${buttonOptions.ariaLabel ? `aria-label="${this.escapeHTML(buttonOptions.ariaLabel)}"` : `aria-label="${this.escapeHTML(prompt) || varName}"`}
+          ${buttonOptions.style ? `style="${buttonOptions.style}"` : ''}
+        >
+          ${loadingHTML}${iconHTML}<span class="vn-button-text">${this.escapeHTML(prompt)}</span>
+        </button>`;
+        break;
+      }
         
       default:
         return `<div class="vn-input-group">

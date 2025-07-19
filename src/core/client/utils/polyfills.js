@@ -76,5 +76,4 @@
       });
     }
     
-    console.log('✅ Browser polyfills loaded');
   })();

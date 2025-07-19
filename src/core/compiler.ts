@@ -25,11 +25,12 @@ import type {
   CompileResult,
   GameData,
   InputHelperConfig,
+  ComponentHelperConfig,
   Logger,
   ProcessedAsset,
 } from '../types/compiler.ts';
 
-import { VNInputHelperSystem } from './input-system.ts';
+import { VNComponentHelperSystem } from './component-system.ts';
 import { VNSceneManager } from './scene-manager.ts';
 import { AssetBundler } from './asset-bundler.ts';
 import { HTMLGenerator } from './html-generator.ts';
@@ -38,7 +39,7 @@ import { ClientBuilder } from './client-builder.ts';
 
 export class VNCompiler {
   private vnEngine: any = null;
-  private inputSystem: VNInputHelperSystem | null = null;
+  private componentSystem: VNComponentHelperSystem | null = null;
   private sceneManager: VNSceneManager | null = null;
   private assetBundler: AssetBundler | null = null;
   private htmlGenerator: HTMLGenerator | null = null;
@@ -67,7 +68,7 @@ export class VNCompiler {
       this.templateManager.initialize();
       this.templateManager.setClientAssets(this.clientAssets);
 
-      this.inputSystem = new VNInputHelperSystem(this.vnEngine, this.logger);
+      this.componentSystem = new VNComponentHelperSystem(this.vnEngine, this.logger);
       this.sceneManager = new VNSceneManager(this.logger);
       this.assetBundler = new AssetBundler(this.logger);
       this.htmlGenerator = new HTMLGenerator(this.templateManager, this.logger);
@@ -102,11 +103,11 @@ export class VNCompiler {
       });
 
       const yamlMetadata = {
+        ...options.metadata,
         title: parsedScript.title as string || options.metadata?.title || "VN Game",
         description: parsedScript.description as string || options.metadata?.description,
         variables: parsedScript.variables || {},
         styles: parsedScript.styles || {},
-        ...options.metadata
       };
 
       const scenesData = parsedScript.scenes as Record<string, unknown>;
@@ -119,16 +120,16 @@ export class VNCompiler {
       const assets = await this.processAssets(options.assetsDir);
       const yamlAssets = this.extractYAMLAssets(parsedScript);
       const allAssets = [...assets, ...yamlAssets];
-      const inputHelpers = this.extractInputHelpers(scenes);
+      const componentHelpers = this.extractComponentHelpers(scenes);
       
-      this.logger.info(`🎨 Processed ${assets.length} assets, ${yamlAssets.length} YAML assets, ${inputHelpers.length} input helpers`);
+      this.logger.info(`🎨 Processed ${assets.length} assets, ${yamlAssets.length} YAML assets,  ${componentHelpers.length} components`);
 
       const gameData: GameData = {
         script: scenesYAML,
         scenes,
         assets: allAssets,
         metadata: yamlMetadata,
-        inputHelpers
+        components: componentHelpers,
       };
 
       const html = await this.generateHTML(gameData, options);
@@ -138,7 +139,6 @@ export class VNCompiler {
       const stats = {
         sceneCount: scenes.length,
         assetCount: allAssets.length,
-        inputHelperCount: inputHelpers.length,
         outputSize: html.length,
         compilationTime: Date.now() - startTime,
         templateEngine: this.vnEngine.getTemplateEngineInfo().type,
@@ -174,11 +174,13 @@ export class VNCompiler {
     }
 
     this.logger.verbose('🏗️ Generating HTML bundle...');
+    
+    const finalTitle = options.title || gameData.metadata.title || 'VN Game';
 
     const theme = this.templateManager.getTheme();
 
     return await this.htmlGenerator.generateBundle({
-      title: options.title || gameData.metadata.title || 'VN Game',
+      title: finalTitle,
       theme,
       assets: gameData.assets,
       gameData,
@@ -286,11 +288,11 @@ export class VNCompiler {
   }
 
   /**
-   * Extract input helpers from scenes
+   * Extract component helpers from scenes
    */
-  private extractInputHelpers(scenes: SceneData[]): InputHelperConfig[] {
-    if (!this.inputSystem) return [];
-    return this.inputSystem.extractInputHelpers(scenes);
+  private extractComponentHelpers(scenes: SceneData[]): ComponentHelperConfig[] {
+    if (!this.componentSystem) return [];
+    return this.componentSystem.extractComponentHelpers(scenes);
   }
 
   /**
@@ -372,8 +374,8 @@ export class VNCompiler {
     return {
       options,
       vnEngine: this.vnEngine,
-      inputSystem: this.inputSystem,
       sceneManager: this.sceneManager,
+      componentSystem: this.componentSystem,
       assetBundler: this.assetBundler,
       htmlGenerator: this.htmlGenerator,
       logger: this.logger,

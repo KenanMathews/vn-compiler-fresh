@@ -1,0 +1,667 @@
+/* Enhanced Keeper Stats Widget CSS - Ocean Blue Theme Integration */
+
+.keeper-stats-widget.enhanced {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    z-index: 1000;
+    background: var(--vn-bg-primary);
+    border: 2px solid var(--vn-border-accent);
+    border-radius: 16px;
+    backdrop-filter: blur(15px);
+    box-shadow: 
+        0 12px 40px var(--vn-shadow-heavy),
+        0 0 0 1px var(--vn-overlay-light) inset;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    font-family: 'Cinzel', serif;
+    min-width: 300px;
+    max-width: 350px;
+    overflow: hidden;
+}
+
+.keeper-stats-widget.enhanced:hover {
+    border-color: var(--vn-accent-primary);
+    box-shadow: 
+        0 16px 50px var(--vn-shadow-heavy),
+        0 0 0 1px var(--vn-overlay-medium) inset,
+        0 0 20px var(--vn-shadow-accent);
+}
+
+/* Notification System */
+.stats-notifications {
+    position: absolute;
+    top: -60px;
+    left: 0;
+    right: 0;
+    z-index: 10;
+    pointer-events: none;
+}
+
+.stat-notification {
+    background: var(--vn-success-color);
+    color: var(--vn-text-primary);
+    padding: 8px 12px;
+    border-radius: 8px;
+    margin-bottom: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    box-shadow: 0 4px 12px var(--vn-shadow-primary);
+    animation: slideInDown 0.4s ease-out, fadeOut 0.4s ease-in 2.6s forwards;
+    border: 1px solid var(--vn-border-primary);
+}
+
+.stat-notification.success {
+    background: var(--vn-success-color);
+}
+
+.stat-notification.info {
+    background: var(--vn-accent-primary);
+}
+
+.stat-notification.warning {
+    background: var(--vn-warning-color);
+}
+
+/* Enhanced Header */
+.stats-header {
+    display: flex;
+    align-items: center;
+    padding: 16px 20px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--vn-border-accent);
+    transition: all 0.3s ease;
+    background: linear-gradient(135deg, var(--vn-bg-secondary), var(--vn-bg-tertiary));
+}
+
+.stats-header:hover {
+    background: linear-gradient(135deg, var(--vn-bg-tertiary), var(--vn-bg-quaternary));
+    border-bottom-color: var(--vn-accent-primary);
+}
+
+.stats-icon-container {
+    position: relative;
+    margin-right: 12px;
+}
+
+.stats-icon {
+    font-size: 20px;
+    transition: transform 0.3s ease;
+}
+
+.stats-header:hover .stats-icon {
+    transform: scale(1.1);
+}
+
+.update-indicator {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    width: 8px;
+    height: 8px;
+    background: var(--vn-success-color);
+    border-radius: 50%;
+    border: 2px solid var(--vn-bg-primary);
+}
+
+.update-indicator.pulse {
+    animation: pulse 1.5s infinite;
+}
+
+.stats-title-container {
+    flex: 1;
+}
+
+.stats-title {
+    color: var(--vn-accent-primary);
+    font-weight: 700;
+    font-size: 15px;
+    line-height: 1.2;
+}
+
+.stats-subtitle {
+    color: var(--vn-text-tertiary);
+    font-size: 11px;
+    font-weight: 400;
+    margin-top: 2px;
+}
+
+.toggle-arrow {
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    color: var(--vn-text-secondary);
+    font-size: 12px;
+}
+
+.toggle-arrow.expanded {
+    transform: rotate(180deg);
+}
+
+/* Enhanced Content Area */
+.stats-content.show {
+    max-height: 1000px;
+    opacity: 1;
+    transform: translateY(0);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.stats-content.hide {
+    max-height: 0;
+    opacity: 0;
+    transform: translateY(-10px);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Quick Overview Bar */
+.quick-overview {
+    display: flex;
+    justify-content: space-around;
+    padding: 12px 16px;
+    background: var(--vn-overlay-light);
+    border-bottom: 1px solid var(--vn-border-secondary);
+}
+
+.overview-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+}
+
+.overview-icon {
+    font-size: 16px;
+}
+
+.overview-text {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--vn-text-primary);
+    white-space: nowrap;
+}
+
+/* Enhanced Stats Grid */
+.stats-grid {
+    padding: 16px;
+    display: grid;
+    gap: 12px;
+}
+
+.stat-item.enhanced {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: var(--vn-overlay-light);
+    border-radius: 10px;
+    border-left: 3px solid transparent;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.stat-item.enhanced::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--vn-overlay-medium);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.stat-item.enhanced:hover {
+    background: var(--vn-overlay-medium);
+    border-left-color: var(--accent-color, var(--vn-accent-primary));
+    transform: translateX(4px);
+}
+
+.stat-item.enhanced:hover::before {
+    opacity: 1;
+}
+
+/* Specific stat item colors using ocean blue theme palette */
+.stat-item.keeper-name.enhanced {
+    --accent-color: var(--vn-warning-color);
+}
+
+.stat-item.reputation.enhanced {
+    --accent-color: var(--vn-accent-primary);
+}
+
+.stat-item.experience.enhanced {
+    --accent-color: var(--vn-accent-secondary);
+}
+
+.stat-item.stories.enhanced {
+    --accent-color: var(--vn-component-scene);
+}
+
+.stat-item.artifacts.enhanced {
+    --accent-color: var(--vn-component-persistent);
+}
+
+.stat-item.location.enhanced {
+    --accent-color: var(--vn-accent-tertiary);
+}
+
+.stat-item.empathy.enhanced {
+    --accent-color: var(--vn-component-persistent);
+}
+
+.stat-icon {
+    font-size: 18px;
+    width: 24px;
+    text-align: center;
+    transition: transform 0.3s ease;
+}
+
+.stat-item.enhanced:hover .stat-icon {
+    transform: scale(1.15);
+}
+
+.stat-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.stat-label {
+    font-size: 10px;
+    color: var(--vn-text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    font-weight: 600;
+    margin-bottom: 2px;
+}
+
+.stat-value {
+    font-size: 14px;
+    color: var(--vn-text-primary);
+    font-weight: 600;
+    line-height: 1.2;
+}
+
+.stat-meta {
+    font-size: 10px;
+    color: var(--vn-text-muted);
+    margin-top: 2px;
+}
+
+.stat-badge {
+    font-size: 16px;
+    opacity: 0.8;
+    transition: all 0.3s ease;
+}
+
+.stat-item.enhanced:hover .stat-badge {
+    opacity: 1;
+    transform: scale(1.2);
+}
+
+/* Reputation Stars */
+.reputation-stars {
+    font-size: 12px;
+    margin-top: 2px;
+    color: var(--vn-warning-color);
+    text-shadow: 0 0 4px var(--vn-shadow-accent);
+}
+
+/* XP Progress Bar */
+.xp-bar {
+    height: 4px;
+    background: var(--vn-overlay-medium);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 4px;
+    margin-bottom: 2px;
+}
+
+.xp-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--vn-accent-primary), var(--vn-accent-secondary));
+    border-radius: 2px;
+    transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 0 8px var(--vn-shadow-accent);
+}
+
+/* Time Period Indicator */
+.time-period-indicator {
+    width: 100%;
+    height: 2px;
+    margin-top: 4px;
+    border-radius: 1px;
+    transition: all 0.3s ease;
+}
+
+.time-period-indicator.the-temporal-tavern {
+    background: linear-gradient(90deg, var(--vn-accent-primary), var(--vn-component-persistent));
+}
+
+.time-period-indicator.wwi---christmas-1914 {
+    background: linear-gradient(90deg, var(--vn-bg-quaternary), var(--vn-bg-accent));
+}
+
+.time-period-indicator.london-cholera-outbreak {
+    background: linear-gradient(90deg, var(--vn-bg-tertiary), var(--vn-bg-quaternary));
+}
+
+.time-period-indicator.d-day---june-1944 {
+    background: linear-gradient(90deg, var(--vn-component-scene), var(--vn-success-color));
+}
+
+/* Empathy Hearts */
+.empathy-hearts {
+    font-size: 12px;
+    margin-top: 2px;
+}
+
+.animated-heart {
+    animation: heartbeat 2s ease-in-out infinite;
+}
+
+/* Enhanced Progress Section */
+.progress-section.enhanced {
+    padding: 16px;
+    border-top: 1px solid var(--vn-border-secondary);
+    background: var(--vn-overlay-light);
+}
+
+.progress-item {
+    margin-bottom: 16px;
+}
+
+.progress-item:last-child {
+    margin-bottom: 0;
+}
+
+.progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.progress-label {
+    font-size: 11px;
+    color: var(--vn-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+}
+
+.progress-percentage {
+    font-size: 11px;
+    color: var(--vn-text-primary);
+    font-weight: 700;
+}
+
+.progress-bar.enhanced {
+    height: 8px;
+    background: var(--vn-overlay-medium);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: inset 0 1px 3px var(--vn-shadow-primary);
+}
+
+.progress-fill.story-progress {
+    background: linear-gradient(90deg, var(--vn-component-scene), var(--vn-success-color));
+    box-shadow: 0 0 10px var(--vn-shadow-accent);
+}
+
+.progress-fill.artifact-progress {
+    background: linear-gradient(90deg, var(--vn-component-persistent), var(--vn-accent-primary));
+    box-shadow: 0 0 10px var(--vn-shadow-accent);
+}
+
+.progress-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+}
+
+.progress-fill::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, transparent, var(--vn-overlay-heavy), transparent);
+    animation: shimmer 2s infinite;
+    border-radius: 4px;
+}
+
+.progress-detail {
+    font-size: 10px;
+    color: var(--vn-text-muted);
+    margin-top: 4px;
+}
+
+/* Achievements Section */
+.achievements-preview {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--vn-border-secondary);
+}
+
+.achievements-label {
+    font-size: 11px;
+    color: var(--vn-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+    margin-bottom: 6px;
+}
+
+.achievements-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.achievement-item {
+    font-size: 10px;
+    background: var(--vn-overlay-medium);
+    color: var(--vn-text-secondary);
+    padding: 4px 8px;
+    border-radius: 12px;
+    border: 1px solid var(--vn-border-secondary);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.3s ease;
+}
+
+.achievement-item:hover {
+    background: var(--vn-overlay-heavy);
+    border-color: var(--vn-border-accent);
+    color: var(--vn-text-primary);
+}
+
+/* Ocean Blue Theme Specific Enhancements */
+.keeper-stats-widget.enhanced {
+    /* Enhanced ocean blue backdrop */
+    backdrop-filter: blur(20px) saturate(180%);
+    border: 2px solid var(--vn-border-accent);
+    box-shadow: 
+        0 12px 40px var(--vn-shadow-heavy),
+        0 0 0 1px var(--vn-overlay-light) inset,
+        0 0 30px rgba(14, 165, 233, 0.1);
+}
+
+/* Subtle blue glow effects */
+.stat-item.enhanced:hover {
+    box-shadow: 0 4px 12px var(--vn-shadow-accent);
+}
+
+.progress-fill.story-progress,
+.progress-fill.artifact-progress {
+    box-shadow: 
+        0 0 10px var(--vn-shadow-accent),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* Enhanced blue theme gradients */
+.stats-header {
+    background: linear-gradient(135deg, 
+        var(--vn-bg-secondary), 
+        var(--vn-bg-tertiary),
+        var(--vn-bg-quaternary));
+}
+
+.stats-header:hover {
+    background: linear-gradient(135deg, 
+        var(--vn-bg-tertiary), 
+        var(--vn-bg-quaternary),
+        var(--vn-bg-accent));
+}
+
+/* Animations */
+@keyframes pulse {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.2); opacity: 0.7; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes heartbeat {
+    0% { transform: scale(1); }
+    25% { transform: scale(1.1); }
+    50% { transform: scale(1); }
+    75% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+@keyframes slideInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+}
+
+@keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Enhanced mounting animation with ocean blue theme */
+.keeper-stats-widget.enhanced {
+    animation: fadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .keeper-stats-widget.enhanced {
+        min-width: 280px;
+        max-width: 300px;
+    }
+    
+    .keeper-stats-widget.enhanced.top-right,
+    .keeper-stats-widget.enhanced.bottom-right {
+        right: 12px;
+    }
+    
+    .keeper-stats-widget.enhanced.top-left,
+    .keeper-stats-widget.enhanced.bottom-left {
+        left: 12px;
+    }
+    
+    .stats-header {
+        padding: 12px 16px;
+    }
+    
+    .stats-grid {
+        padding: 12px;
+        gap: 10px;
+    }
+    
+    .stat-item.enhanced {
+        padding: 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .keeper-stats-widget.enhanced {
+        min-width: 260px;
+        max-width: 280px;
+    }
+    
+    .quick-overview {
+        padding: 10px 12px;
+    }
+    
+    .overview-text {
+        font-size: 10px;
+    }
+    
+    .stat-value {
+        font-size: 13px;
+    }
+    
+    .stat-label {
+        font-size: 9px;
+    }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .keeper-stats-widget.enhanced {
+        border-width: 3px;
+        background: var(--vn-bg-primary);
+    }
+    
+    .stat-item.enhanced {
+        border-left-width: 4px;
+    }
+    
+    .progress-bar.enhanced {
+        border: 1px solid var(--vn-border-primary);
+    }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    .keeper-stats-widget.enhanced,
+    .stats-content,
+    .stat-item.enhanced,
+    .progress-fill,
+    .toggle-arrow {
+        transition: none;
+    }
+    
+    .animated-heart,
+    .update-indicator.pulse {
+        animation: none;
+    }
+    
+    .progress-fill::after {
+        animation: none;
+    }
+}

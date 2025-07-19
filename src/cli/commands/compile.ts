@@ -32,9 +32,9 @@ export async function compileCommand(args: CLIArgs, logger: Logger): Promise<voi
       customCSS: args.css || config.customCSS,
       customJS: args.js || config.customJS,
       minify: args.minify ?? config.minify ?? false,
-      title: args.title || config.title || config.metadata?.title,
+      title: args.title || config.metadata?.title,
       metadata: {
-        title: args.title || config.title || "VN Game",
+        title: args.title || config.title,
         author: config.metadata?.author,
         description: config.metadata?.description,
         version: config.version || "1.0.0",

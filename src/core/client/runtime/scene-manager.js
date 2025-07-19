@@ -5,6 +5,7 @@ class SceneManager {
     this.transitionInProgress = false;
     this.feedManager = null;
     this.uiManager = null;
+    this.componentManager = null; 
     this.sceneStartTimes = new Map();
     this.sceneChoicesCounts = new Map();
     this.bookmarks = new Map();
@@ -16,6 +17,11 @@ class SceneManager {
   
   setUIManager(uiManager) {
     this.uiManager = uiManager;
+  }
+  
+  setComponentManager(componentManager) {  // NEW: Setter method
+    this.componentManager = componentManager;
+    console.log('🔧 Scene Manager: Component Manager integration enabled');
   }
 
   async transitionToScene(sceneId, transitionType = 'fade', options = {}) {
@@ -42,6 +48,12 @@ class SceneManager {
       }
       
       await this.handleSceneSeparation(sceneId, transitionType, options);
+      
+      // 🔄 STEP: Handle component lifecycle during scene transition
+      const previousSceneId = this.currentSceneId;
+      if (this.componentManager) {
+        await this.componentManager.handleSceneChange(sceneId, previousSceneId);
+      }
       
       this.updateSceneMetadata(sceneId);
       this.currentSceneId = sceneId;

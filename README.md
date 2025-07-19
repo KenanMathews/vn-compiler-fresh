@@ -6,7 +6,10 @@ A powerful, production-ready compiler that transforms YAML narratives into stand
 
 - Single-File Compilation - Complete games in standalone HTML files with embedded assets
 - Development Server - Live reload, validation API, and static file serving
+- API Server - Remote compilation for web applications and tools
 - Advanced Input System - Rich form controls with real-time validation
+- Interactive Components - Persistent UI elements with lifecycle management
+- Built-in Themes - 5 professional themes for different story genres
 - Comprehensive Validation - YAML structure, scene references, and asset validation
 - Modern UI - Vertical feed interface with smooth animations
 - Hot Reload - Instant preview of changes during development
@@ -20,6 +23,8 @@ A powerful, production-ready compiler that transforms YAML narratives into stand
 - Development Workflow
 - YAML Structure
 - Input Helpers
+- Interactive Components
+- API Server & Remote Compilation
 - Advanced Features
 - Configuration
 
@@ -58,6 +63,8 @@ Create a `story.yaml` file:
 title: "My First VN Game"
 description: "An interactive visual novel"
 author: "Your Name"
+styles:
+  theme: "ocean_blue"
 
 variables:
   playerName: ""
@@ -142,6 +149,7 @@ vn-compiler compile story.yaml
 # Production build with optimization
 vn-compiler compile story.yaml \
   --output game.html \
+  --theme mystical_purple \
   --minify \
   --assets ./assets \
   --css custom.css \
@@ -156,6 +164,7 @@ vn-compiler compile story.yaml --dev --verbose
 - `-a, --assets <dir>` - Assets directory to bundle
 - `-c, --css <file>` - Custom CSS file to include
 - `-j, --js <file>` - Custom JavaScript file to include
+- `--theme <name>` - Built-in theme: `dark_historical`, `ocean_blue`, `forest_green`, `mystical_purple`, `clean_light`
 - `--minify` - Minify HTML output for production
 - `--dev` - Include debug information
 - `--verbose` - Detailed compilation logging
@@ -244,6 +253,43 @@ vn-compiler init multimedia-story \
 - `--author <name>` - Set author name
 - `--description <text>` - Set project description
 
+### server - API Server for Remote Compilation
+
+Start an API server that allows remote compilation from web applications and other tools.
+
+```bash
+# Start API server on default port 8080
+vn-compiler server
+
+# Custom port and CORS settings
+vn-compiler server \
+  --port 9000 \
+  --cors "https://myapp.com" \
+  --workdir /tmp/vn-sessions
+
+# Production API server
+vn-compiler server \
+  --port 8080 \
+  --cors "*" \
+  --verbose
+```
+
+**Options:**
+- `-p, --port <number>` - Server port (default: `8080`)
+- `--cors <origin>` - CORS origin (default: `*`)
+- `--workdir <path>` - Working directory for sessions (default: `./vn-server-temp`)
+- `--verbose` - Enable detailed logging
+
+**API Endpoints:**
+- `POST /api/session` - Create new compilation session
+- `POST /api/session/:id/script` - Upload YAML script content
+- `POST /api/session/:id/asset` - Upload asset file  
+- `POST /api/session/:id/compile` - Compile the project
+- `GET /api/session/:id/download` - Download compiled HTML
+- `GET /api/session/:id/status` - Get session status
+- `DELETE /api/session/:id` - Delete session
+- `GET /health` - Health check endpoint
+
 ## Development Workflow
 
 ### 1. Start Development Server
@@ -279,6 +325,8 @@ vn-compiler compile story.yaml --output index.html --minify
 title: "Game Title"
 description: "Game description"
 author: "Your Name"
+styles:
+  theme: "ocean_blue"
 
 # Game variables (optional)
 variables:
@@ -393,6 +441,25 @@ action:
 - "{{input \"story\" \"Tell your story\" \"textarea\"}}"
 ```
 
+**Button Input:**
+```yaml
+- "{{input \"actionBtn\" \"Click Me\" \"button\" \"type:primary,action:start_game,icon:⚡\"}}"
+- "{{input \"menuBtn\" \"Settings\" \"button\" \"type:menu,scene:settings,confirm:true\"}}"
+```
+
+**Button Options:**
+- `type`: `primary`, `secondary`, `menu`, `choice`, `custom`
+- `action`: Custom action to trigger
+- `scene`: Scene to navigate to
+- `setVar`: Variable to set (format: `varName:value`)
+- `call`: Function to call
+- `confirm`: Show confirmation dialog (`true`/`false`)
+- `confirmText`: Custom confirmation message
+- `icon`: Icon to display (emoji, HTML, or CSS class)
+- `size`: `large` for bigger buttons
+- `disabled`: `true` to disable button
+- `loading`: `true` to show loading spinner
+
 ### Variable Interpolation
 
 Use Handlebars syntax to display variables:
@@ -403,7 +470,512 @@ Use Handlebars syntax to display variables:
 - "{{#if hasKey}}You have the magic key!{{/if}}"
 ```
 
+## Interactive Components
+
+Create persistent UI components that enhance your visual novel with custom interactive elements.
+
+### Creating Components
+
+Use the `{{component}}` helper to create, mount, and control components:
+
+```yaml
+scenes:
+  chapter1:
+    - "Welcome to Chapter 1!"
+    # Create a persistent status bar
+    - '{{component "create" "StatusBar" "components/status-bar.js" "components/status-bar.css" "status-ui" "persistent=true,playerName={{playerName}},score={{score}}"}}'
+    - "Your adventure begins now..."
+```
+
+### Component Lifecycle & Cleanup
+
+**Automatic Cleanup:**
+- **Scene Components**: Automatically destroyed when leaving a scene
+- **Persistent Components**: Survive scene transitions and must be manually unmounted
+- **Save/Load**: Component states are preserved in save games
+
+**Cleanup Examples:**
+```yaml
+# Scene component - auto-cleanup
+- '{{component "create" "BattleUI" "battle.js" "battle.css" "battle" "health={{health}}"}}'
+
+# Persistent component - manual cleanup required  
+- '{{component "create" "StatusBar" "status.js" "status.css" "status" "persistent=true"}}'
+# Later, manually remove:
+- '{{component "unmount" "StatusBar-status"}}'
+```
+
+**Component State Management:**
+- Components can implement `getState()` and `setState()` for save/load
+- Visibility states are automatically preserved
+- Scene change notifications for persistent components via `onSceneChange()`
+
+### Component Lifecycle
+
+**Create and Mount:**
+```yaml
+- '{{component "create" "ComponentName" "script.js" "style.css" "instance-id" "config=value,option=true"}}'
+```
+
+**Update Component:**
+```yaml
+- '{{component "update" "ComponentName-instance-id" "newValue={{variable}},score={{score}}"}}'
+```
+
+**Show/Hide:**
+```yaml
+- '{{component "show" "ComponentName-instance-id"}}'
+- '{{component "hide" "ComponentName-instance-id"}}'
+```
+
+**Remove Component:**
+```yaml
+- '{{component "unmount" "ComponentName-instance-id"}}'
+```
+
+### Component Types
+
+**Persistent Components** - Survive scene transitions:
+```yaml
+- '{{component "create" "InventoryUI" "inventory.js" "inventory.css" "inv" "persistent=true,items={{inventory}}"}}'
+```
+
+**Scene Components** - Auto-cleanup on scene change:
+```yaml
+- '{{component "create" "BattleUI" "battle.js" "battle.css" "battle" "health={{health}},mana={{mana}}"}}'
+```
+
+### Example Component Class
+
+**components/status-bar.js:**
+```javascript
+class StatusBar extends BaseVNComponent {
+  constructor(vnEngine, config = {}) {
+    super(vnEngine, config);
+    this.playerName = config.playerName || 'Player';
+    this.score = config.score || 0;
+  }
+
+  render() {
+    return `
+      <div class="status-bar">
+        <span class="player-name">${this.playerName}</span>
+        <span class="score">Score: ${this.score}</span>
+      </div>
+    `;
+  }
+
+  update(newConfig) {
+    this.playerName = newConfig.playerName || this.playerName;
+    this.score = newConfig.score || this.score;
+    this.refresh();
+  }
+}
+```
+
+## API Server & Remote Compilation
+
+The VN Compiler includes a powerful API server that enables remote compilation from web applications, mobile apps, and other tools. This allows you to build visual novel editors, online platforms, and integrated development environments.
+
+### Starting the API Server
+
+```bash
+# Basic API server
+vn-compiler server
+
+# Production configuration
+vn-compiler server \
+  --port 8080 \
+  --cors "https://yourdomain.com" \
+  --workdir /var/vn-sessions \
+  --verbose
+```
+
+### API Workflow
+
+1. **Create Session** - Initialize a new compilation workspace
+2. **Upload Script** - Send your YAML visual novel script
+3. **Upload Assets** - Upload images, audio, and other files
+4. **Compile** - Transform everything into a standalone HTML game
+5. **Download** - Retrieve the completed game file
+
+### Session Management
+
+**Create a New Session:**
+```javascript
+const response = await fetch('http://localhost:8080/api/session', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    title: 'My Visual Novel',
+    author: 'Your Name',
+    description: 'An epic adventure',
+    customCSS: 'body { background: #000; }',
+    minify: true
+  })
+});
+
+const session = await response.json();
+console.log('Session ID:', session.sessionId);
+```
+
+**Upload YAML Script:**
+```javascript
+// Method 1: Raw YAML content
+await fetch(`http://localhost:8080/api/session/${sessionId}/script`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'text/plain' },
+  body: yamlContent
+});
+
+// Method 2: Form data with file
+const formData = new FormData();
+formData.append('script', scriptFile);
+await fetch(`http://localhost:8080/api/session/${sessionId}/script`, {
+  method: 'POST',
+  body: formData
+});
+```
+
+**Upload Assets:**
+```javascript
+const formData = new FormData();
+formData.append('asset', imageFile);
+formData.append('filename', 'character.png');
+
+await fetch(`http://localhost:8080/api/session/${sessionId}/asset`, {
+  method: 'POST',
+  body: formData
+});
+```
+
+**Compile Project:**
+```javascript
+const compileResponse = await fetch(`http://localhost:8080/api/session/${sessionId}/compile`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    minify: true,
+    title: 'Custom Game Title'
+  })
+});
+
+const result = await compileResponse.json();
+if (result.status === 'compiled') {
+  console.log('✅ Compilation successful!');
+  console.log('Stats:', result.stats);
+} else {
+  console.error('❌ Compilation failed:', result.error);
+}
+```
+
+**Download Compiled Game:**
+```javascript
+const gameResponse = await fetch(`http://localhost:8080/api/session/${sessionId}/download`);
+const gameHTML = await gameResponse.text();
+
+// Save to file or display in iframe
+const blob = new Blob([gameHTML], { type: 'text/html' });
+const url = URL.createObjectURL(blob);
+const a = document.createElement('a');
+a.href = url;
+a.download = 'my-game.html';
+a.click();
+```
+
+### Session Status & Management
+
+**Check Session Status:**
+```javascript
+const status = await fetch(`http://localhost:8080/api/session/${sessionId}/status`)
+  .then(r => r.json());
+
+console.log('Session status:', status.status); // 'created', 'ready', 'compiled'
+console.log('Has script:', status.hasScript);
+console.log('Asset count:', status.assetCount);
+console.log('Has compiled output:', status.hasCompiledOutput);
+```
+
+**Delete Session:**
+```javascript
+await fetch(`http://localhost:8080/api/session/${sessionId}`, {
+  method: 'DELETE'
+});
+```
+
+### Error Handling
+
+```javascript
+async function compileVisualNovel(yamlContent, assets = []) {
+  try {
+    // Create session
+    const session = await fetch('http://localhost:8080/api/session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'My Game' })
+    }).then(r => r.json());
+
+    const sessionId = session.sessionId;
+
+    // Upload script
+    await fetch(`http://localhost:8080/api/session/${sessionId}/script`, {
+      method: 'POST',
+      body: yamlContent
+    });
+
+    // Upload assets
+    for (const asset of assets) {
+      const formData = new FormData();
+      formData.append('asset', asset.file);
+      formData.append('filename', asset.filename);
+      
+      await fetch(`http://localhost:8080/api/session/${sessionId}/asset`, {
+        method: 'POST',
+        body: formData
+      });
+    }
+
+    // Compile
+    const compileResult = await fetch(`http://localhost:8080/api/session/${sessionId}/compile`, {
+      method: 'POST'
+    }).then(r => r.json());
+
+    if (compileResult.status !== 'compiled') {
+      throw new Error(compileResult.error || 'Compilation failed');
+    }
+
+    // Download
+    const gameHTML = await fetch(`http://localhost:8080/api/session/${sessionId}/download`)
+      .then(r => r.text());
+
+    // Cleanup
+    await fetch(`http://localhost:8080/api/session/${sessionId}`, {
+      method: 'DELETE'
+    });
+
+    return gameHTML;
+
+  } catch (error) {
+    console.error('Compilation failed:', error);
+    throw error;
+  }
+}
+```
+
+### Integration Examples
+
+**React Component:**
+```jsx
+function VisualNovelCompiler() {
+  const [script, setScript] = useState('');
+  const [compiling, setCompiling] = useState(false);
+  const [result, setResult] = useState(null);
+
+  const handleCompile = async () => {
+    setCompiling(true);
+    try {
+      const gameHTML = await compileVisualNovel(script);
+      setResult(gameHTML);
+    } catch (error) {
+      console.error('Failed to compile:', error);
+    } finally {
+      setCompiling(false);
+    }
+  };
+
+  return (
+    <div>
+      <textarea 
+        value={script}
+        onChange={(e) => setScript(e.target.value)}
+        placeholder="Enter your YAML script..."
+      />
+      <button onClick={handleCompile} disabled={compiling}>
+        {compiling ? 'Compiling...' : 'Compile Game'}
+      </button>
+      {result && (
+        <iframe 
+          srcDoc={result}
+          style={{ width: '100%', height: '600px' }}
+        />
+      )}
+    </div>
+  );
+}
+```
+
+**Node.js Backend:**
+```javascript
+const express = require('express');
+const multer = require('multer');
+const fetch = require('node-fetch');
+
+const app = express();
+const upload = multer();
+
+app.post('/compile-vn', upload.fields([
+  { name: 'script' },
+  { name: 'assets' }
+]), async (req, res) => {
+  try {
+    const vnCompilerAPI = 'http://localhost:8080';
+    
+    // Create session
+    const session = await fetch(`${vnCompilerAPI}/api/session`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: req.body.title })
+    }).then(r => r.json());
+
+    // Upload script and assets
+    // ... (implementation similar to examples above)
+
+    // Return compiled game
+    const gameHTML = await fetch(`${vnCompilerAPI}/api/session/${session.sessionId}/download`)
+      .then(r => r.text());
+    
+    res.setHeader('Content-Type', 'text/html');
+    res.send(gameHTML);
+    
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+```
+
 ## Advanced Features
+
+### Built-in Themes & Styling
+
+VN Compiler includes 5 professionally designed themes that can be applied to your visual novels. Themes use CSS variables for consistent styling and can be customized further with custom CSS.
+
+#### Available Themes
+
+**Dark Themes:**
+
+- **`dark_historical`** (default) - Classic dark red theme for dramatic historical narratives
+- **`ocean_blue`** - Cool blue theme for sci-fi and technological narratives  
+- **`forest_green`** - Natural green theme for adventure and nature stories
+- **`mystical_purple`** - Purple theme for fantasy and magical stories
+
+**Light Themes:**
+
+- **`clean_light`** - Minimal light theme for educational and accessible content
+
+#### Using Themes
+
+**In YAML Metadata:**
+```yaml
+title: "My Visual Novel"
+author: "Your Name"
+styles:
+  theme: "ocean_blue"  # Set theme for the entire game
+
+scenes:
+  intro:
+    - "Welcome to the sci-fi adventure!"
+```
+
+**Via CLI:**
+```bash
+# Compile with specific theme
+vn-compiler compile story.yaml --theme ocean_blue
+
+# Theme + custom CSS
+vn-compiler compile story.yaml \
+  --theme mystical_purple \
+  --css custom.css
+```
+
+**Via API Server:**
+```javascript
+// Set theme in session creation
+const session = await fetch('http://localhost:8080/api/session', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    title: 'My Game',
+    theme: 'forest_green'  // Apply theme
+  })
+});
+```
+
+#### Theme Variables
+
+Each theme provides CSS variables you can use in custom CSS:
+
+```css
+/* Primary colors */
+--vn-bg-primary          /* Main background */
+--vn-bg-secondary        /* Secondary background */
+--vn-accent-primary      /* Primary accent color */
+--vn-text-primary        /* Main text color */
+
+/* Component colors */
+--vn-component-persistent /* Persistent component indicator */
+--vn-component-scene     /* Scene component indicator */
+
+/* Utility colors */
+--vn-success-color       /* Success state */
+--vn-error-color         /* Error state */
+--vn-warning-color       /* Warning state */
+
+/* Legacy compatibility */
+--primary-color          /* Backwards compatibility */
+--background-color       /* Backwards compatibility */
+--text-color            /* Backwards compatibility */
+```
+
+#### Custom Theme Example
+
+```css
+/* custom.css - Override theme variables */
+:root {
+  --vn-accent-primary: #ff6b6b;        /* Custom accent */
+  --vn-bg-primary: #1a1a2e;           /* Custom background */
+  --vn-text-primary: #e94560;         /* Custom text color */
+}
+
+/* Style specific components */
+.vn-choice-button {
+  background: linear-gradient(45deg, var(--vn-accent-primary), var(--vn-accent-secondary));
+  border-radius: 15px;
+  box-shadow: 0 4px 15px var(--vn-shadow-accent);
+}
+
+.vn-input {
+  border: 2px solid var(--vn-accent-primary);
+  background: var(--vn-bg-secondary);
+  color: var(--vn-text-primary);
+}
+```
+
+### Button Actions & Events
+
+Buttons support rich interactions beyond simple clicks:
+
+```javascript
+// Listen for button actions
+window.addEventListener('vn-button-action', (event) => {
+  const { action, button, varName } = event.detail;
+  console.log(`Button action: ${action}`);
+});
+
+// Custom button functions
+window.myCustomAction = (buttonElement, varName) => {
+  // Your custom logic here
+  console.log(`Custom action for ${varName}`);
+};
+```
+
+**Button Features:**
+- Loading states with spinners
+- Confirmation dialogs
+- Variable setting
+- Scene navigation
+- Custom function calls
+- Icon support (emoji, SVG, CSS classes)
+- Accessibility features (ARIA labels, keyboard navigation)
 
 ### Custom Styling
 
@@ -585,6 +1157,59 @@ vn-compiler compile story.yaml --output index.html --dev
 # - Any static host
 ```
 
+### API Server Deployment
+
+Deploy the VN Compiler as a service for remote compilation:
+
+```bash
+# Production API server
+vn-compiler server \
+  --port 8080 \
+  --cors "https://yourdomain.com" \
+  --workdir /var/vn-sessions
+
+# Or with Docker
+docker run -p 8080:8080 -v /var/vn-sessions:/app/sessions vn-compiler server
+```
+
+**Use Cases:**
+- **Web-based Visual Novel Editors**: Integrate compilation into browser-based tools
+- **Mobile App Backends**: Compile VN games from mobile applications  
+- **Content Management Systems**: Allow non-technical users to create games
+- **Educational Platforms**: Provide VN creation tools for students
+- **Game Development Pipelines**: Automated compilation in CI/CD workflows
+
+### Production Deployment
+
+**Docker Setup:**
+```dockerfile
+FROM denoland/deno:1.40.0
+
+WORKDIR /app
+COPY . .
+RUN deno cache cli.ts
+
+EXPOSE 8080
+CMD ["deno", "run", "--allow-all", "cli.ts", "server", "--port", "8080"]
+```
+
+**Environment Variables:**
+```bash
+# API server configuration
+VN_API_PORT=8080
+VN_CORS_ORIGIN=https://yourdomain.com
+VN_WORK_DIR=/var/vn-sessions
+VN_VERBOSE=true
+```
+
+### Security Considerations
+
+- **CORS Configuration**: Set specific origins in production, not `*`
+- **Rate Limiting**: Implement rate limiting for API endpoints
+- **File Upload Limits**: Monitor asset upload sizes
+- **Session Cleanup**: Sessions auto-cleanup, but monitor disk usage
+- **Input Validation**: Validate YAML content and asset types
+
 ## Troubleshooting
 
 ### Common Issues
@@ -630,7 +1255,6 @@ vn-compiler serve story.yaml --verbose
 
 ## Documentation
 
-- VN Engine Documentation: `./vn-EngineREADME.md` - Core engine features
 - API Reference: Generated TypeScript documentation
 - Examples: `./examples/` - Sample projects and templates
 
