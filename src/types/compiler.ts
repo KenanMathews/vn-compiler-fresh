@@ -76,6 +76,7 @@ export interface TemplateOverrides {
   assetAudio?: string;
   assetVideo?: string;
 }
+import { DependencyConfig, YAMLDependencies } from './dependencies.ts';
 
 export interface BundleOptions {
   title: string;
@@ -86,6 +87,9 @@ export interface BundleOptions {
   gameData: GameData;
   minify: boolean;
   metadata: GameMetadata;
+  dependencies?: DependencyConfig[];
+  yamlDependencies?: YAMLDependencies;
+  bundleDependencies?: boolean;
 }
 
 export interface GameData {

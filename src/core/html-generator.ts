@@ -6,6 +6,7 @@ import type {
   ProcessedAsset,
   ThemeConfig,
 } from '../types/compiler.ts';
+import { DependencyManager } from './dependency-manager.ts';
 import { TemplateManager } from './template-manager.ts';
 import { ClientBuilder } from './client-builder.ts';
 import { minify as minifyHTML } from 'npm:html-minifier-terser@^7.2.0';
@@ -18,12 +19,14 @@ import CleanCSS from 'npm:clean-css@^5.3.2';
  */
 export class HTMLGenerator {
   private clientBuilder: ClientBuilder;
+  private dependencyManager: DependencyManager;
 
   constructor(
     private templateManager: TemplateManager,
     private logger: Logger,
   ) {
     this.clientBuilder = new ClientBuilder(logger);
+    this.dependencyManager = new DependencyManager(logger);
   }
 
   /**
@@ -33,8 +36,11 @@ export class HTMLGenerator {
     this.logger.info('🏗️ Generating HTML bundle (v1 modular)...');
 
     try {
+      await this.processDependencies(options);
+
       const runtimes = clientRuntimes || await this.clientBuilder.getAllClientRuntimes();
       const bundledCSS = this.bundleCSS(options, runtimes, options.gameData.components);
+
       
       const runtimeData = this.generateRuntimeData(options);
       
@@ -47,9 +53,13 @@ export class HTMLGenerator {
         metadata: options.metadata,
         gameData: options.gameData,
         customJS: options.customJS || '',
+        dependencyManager: this.dependencyManager,
       });
 
+
       const finalHTML = options.minify ? await this.minifyHTML(html) : html;
+
+      this.logDependencyStats();
 
       this.logger.info(`✅ HTML bundle generated (v1): ${this.formatSize(finalHTML.length)}`);
       return finalHTML;
@@ -74,6 +84,12 @@ export class HTMLGenerator {
     // Start with theme variables (always first)
     cssComponents.push('/* Theme Variables */');
     cssComponents.push(this.templateManager.getThemeVariablesCSS());
+
+    const dependencyScripts = this.generateDependencyScripts(this.dependencyManager);
+    if (dependencyScripts.css && dependencyScripts.css.trim()) {
+      cssComponents.push('/* Dependency CSS */');
+      cssComponents.push(dependencyScripts.css);
+    }
 
     // Add base structural CSS
     cssComponents.push('/* Base CSS */');
@@ -153,8 +169,10 @@ export class HTMLGenerator {
     metadata: any;
     gameData: GameData;
     customJS?: string;
+    dependencyManager: DependencyManager;
   }): string {
     const title = data.title || data.gameData.metadata.title || 'VN Game';
+    const dependencyScripts = this.generateDependencyScripts(data.dependencyManager);
     let html = template
       .replaceAll('{{VN_TITLE}}', this.escapeHTML(title))
       .replace('{{META_DESCRIPTION}}', this.escapeHTML(data.metadata.description || data.title))
@@ -164,6 +182,7 @@ export class HTMLGenerator {
       .replace('{{RUNTIME_DATA}}', data.runtimeData)
       .replace('{{GENERATION_TIMESTAMP}}', new Date().toISOString())
       .replace('{{SCENE_COUNT}}', data.gameData.scenes.length.toString())
+      .replace('{{DEPENDENCY_SCRIPTS}}', dependencyScripts.head)
       .replace('{{RUNTIME_SCRIPTS}}', this.generateRuntimeScripts(data.clientRuntimes, data.customJS, data.gameData.components));
 
     for (const [placeholder, content] of Object.entries(data.clientRuntimes)) {
@@ -177,9 +196,12 @@ export class HTMLGenerator {
   /**
    * Generate runtime scripts for injection
    */
-  private generateRuntimeScripts(clientRuntimes: Record<string, string>, customJS?: string, componentData?: ComponentHelperConfig[]): string {
+  private generateRuntimeScripts(clientRuntimes: Record<string, string>, customJS?: string, componentData?: ComponentHelperConfig[], dependencyScripts?: string ): string {
     const scripts: string[] = [];
-    
+
+    if (dependencyScripts && dependencyScripts.trim()) {
+      scripts.push(dependencyScripts);
+    }
     const scriptOrder = [
       'UTILS_POLYFILLS_JS',
       'VENDOR_VN_ENGINE_LOADER_JS',
@@ -237,11 +259,13 @@ export class HTMLGenerator {
         minified: options.minify,
         version: '1.0.0',
         generated: new Date().toISOString(),
+        dependencies: this.dependencyManager.getStats(),
       },
       debug: {
         scriptType: typeof options.gameData.script,
         sceneCount: options.gameData.scenes.length,
         compiledAt: new Date().toISOString(),
+        dependencyManifest: this.dependencyManager.getManifest(),
       },
     };
 
@@ -397,4 +421,81 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
     
     return jsContent.join('\n\n');
   }
+
+  private async processDependencies(options: BundleOptions): Promise<void> {
+    // Clear any existing dependencies
+    this.dependencyManager.clear();
+
+    // Add dependencies from YAML if present
+    if (options.yamlDependencies) {
+      this.dependencyManager.addFromYAML(options.yamlDependencies);
+    }
+
+    // Add additional dependencies from options
+    if (options.dependencies) {
+      this.dependencyManager.addDependencies(options.dependencies);
+    }
+
+    // Bundle dependencies if requested
+    if (options.bundleDependencies) {
+      await this.dependencyManager.bundleDependencies(options.minify);
+    }
+
+    const stats = this.dependencyManager.getStats();
+    if (stats.total > 0) {
+      this.logger.info(`📦 Processed ${stats.total} dependencies (${stats.bundled} bundled, ${stats.cdn} CDN)`);
+    }
+  }
+
+  private logDependencyStats(): void {
+    const manifest = this.dependencyManager.getManifest();
+    const stats = manifest.stats;
+
+    if (stats.total > 0) {
+      this.logger.info('📊 Dependency Statistics:');
+      this.logger.info(`   Total: ${stats.total} dependencies`);
+      this.logger.info(`   CDN: ${stats.cdn}, Bundled: ${stats.bundled}, Inline: ${stats.inline}`);
+      if (stats.totalBundledSize > 0) {
+        this.logger.info(`   Bundled size: ${this.formatSize(stats.totalBundledSize)}`);
+      }
+    }
+  }
+
+  private generateDependencyScripts(dependencyManager: DependencyManager): { head: string; body: string ; css: string } {
+    const head: string[] = [];
+    const body: string[] = [];
+    let dependencyCSS = '';
+
+    // Add CDN scripts to head
+    const cdnScripts = dependencyManager.generateCDNScripts();
+    if (cdnScripts.trim()) {
+      head.push('<!-- External Dependencies (CDN) -->');
+      head.push(cdnScripts);
+    }
+
+    // Add bundled scripts to body (before runtime)
+    const bundledContent = dependencyManager.generateBundledScripts();
+    if (bundledContent.js && bundledContent.js.trim()) {
+      body.push('<!-- Bundled Dependencies (JS) -->');
+      body.push(`<script>\n${bundledContent.js}\n</script>`);
+    }
+
+    if (bundledContent.css && bundledContent.css.trim()) {
+      dependencyCSS = bundledContent.css;
+    }
+
+    // Add inline scripts to body
+    const inlineScripts = dependencyManager.generateInlineScripts();
+    if (inlineScripts.trim()) {
+      body.push('<!-- Inline Dependencies -->');
+      body.push(`<script>\n${inlineScripts}\n</script>`);
+    }
+
+    return {
+      head: head.join('\n'),
+      body: body.join('\n'),
+      css: dependencyCSS
+    };
+  }
 }
+

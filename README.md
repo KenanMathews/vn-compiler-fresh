@@ -26,6 +26,7 @@ A powerful, production-ready compiler that transforms YAML narratives into stand
 - Interactive Components
 - API Server & Remote Compilation
 - Advanced Features
+- External Dependencies
 - Configuration
 
 ## Quick Start
@@ -1008,6 +1009,69 @@ vn-compiler compile story.yaml --css custom.css
   padding: 12px;
 }
 ```
+
+### External Dependencies
+
+Include external JavaScript libraries in your visual novels using the dependency system. Add popular libraries like Lodash, Chart.js, and animation frameworks to enhance your games.
+
+#### YAML Configuration
+
+**Full Dependency Configuration:**
+```yaml
+title: "My Game"
+dependencies:
+  - name: "lodash"
+    version: "4.17.21"
+    url: "https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js"
+    type: "script"
+  - name: "chart.js"
+    version: "3.9.1"
+    url: "https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"
+    type: "script"
+
+scenes:
+  intro:
+    - "Welcome to a game with external libraries!"
+```
+
+**Quick Dependencies (Popular Libraries):**
+```yaml
+dependencies_quick:
+  - "lodash@4.17.21"
+  - "chart.js@3.9.1"
+  - "anime.js@3.2.1"
+```
+
+#### Using Dependencies
+
+Dependencies are available in custom JavaScript and components:
+
+```javascript
+// Use in custom.js
+const uniqueItems = _.uniq(gameState.inventory);
+
+// Create charts
+const chart = new Chart(ctx, {
+  type: 'bar',
+  data: { labels: ['HP', 'MP'], datasets: [{ data: [100, 50] }] }
+});
+
+// Animate elements
+anime({ targets: '.choice', scale: [1, 1.1, 1], duration: 300 });
+```
+
+#### Compilation
+
+```bash
+# Dependencies loaded automatically
+vn-compiler compile story.yaml
+
+# Development server shows dependency status
+vn-compiler serve story.yaml
+# Output: 📦 Processed 3 dependencies (1 bundled, 2 CDN)
+```
+
+Dependencies are loaded from CDN by default for optimal performance. The compiler automatically handles bundling and provides statistics about loaded libraries.
 
 ### Custom JavaScript
 

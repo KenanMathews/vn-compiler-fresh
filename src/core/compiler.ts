@@ -100,6 +100,7 @@ export class VNCompiler {
         hasTitle: !!parsedScript.title,
         hasScenes: !!parsedScript.scenes,
         sceneCount: parsedScript.scenes ? Object.keys(parsedScript.scenes as any).length : 0,
+        hasDependencies: !!(parsedScript.dependencies || parsedScript.dependencies_quick),
       });
 
       const yamlMetadata = {
@@ -108,6 +109,11 @@ export class VNCompiler {
         description: parsedScript.description as string || options.metadata?.description,
         variables: parsedScript.variables || {},
         styles: parsedScript.styles || {},
+      };
+
+      const yamlDependencies = {
+        dependencies: parsedScript.dependencies as any[],
+        dependencies_quick: parsedScript.dependencies_quick as string[],
       };
 
       const scenesData = parsedScript.scenes as Record<string, unknown>;
@@ -132,7 +138,7 @@ export class VNCompiler {
         components: componentHelpers,
       };
 
-      const html = await this.generateHTML(gameData, options);
+      const html = await this.generateHTML(gameData, options, yamlDependencies);
 
       await this.writeOutput(options.output, html);
 
@@ -168,7 +174,7 @@ export class VNCompiler {
   /**
    * Generate HTML using HTMLGenerator
    */
-  private async generateHTML(gameData: GameData, options: CompileOptions): Promise<string> {
+  private async generateHTML(gameData: GameData, options: CompileOptions, yamlDependencies?: any): Promise<string> {
     if (!this.htmlGenerator || !this.templateManager) {
       throw new Error('HTML Generator not initialized');
     }
@@ -188,6 +194,7 @@ export class VNCompiler {
       metadata: gameData.metadata,
       customCSS: options.customCSS ? await this.readCustomFile(options.customCSS, 'CSS') : undefined,
       customJS: options.customJS ? await this.readCustomFile(options.customJS, 'JS') : undefined,
+      yamlDependencies: yamlDependencies || {},
     }, this.clientAssets || undefined);
   }
 

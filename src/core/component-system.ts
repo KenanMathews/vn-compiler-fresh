@@ -122,7 +122,7 @@ export class VNComponentHelperSystem {
   private parseComponentFromString(text: string, sceneId: string, instructionIndex: number): ComponentHelperConfig[] {
     const helpers: ComponentHelperConfig[] = [];
     
-    const createRegex = /\{\{component\s+"create"\s+"([^"]+)"\s+"([^"]+)"\s+"([^"]+)"\s+"([^"]+)"\s+"([^"]*?)"\s*\}\}/g;
+    const createRegex = /\{\{component\s+["']create["']\s+["']([^"']+)["']\s+["']([^"']+)["']\s+["']([^"']+)["']\s+["']([^"']+)["']\s+["']([^"']*?)["']\s*\}\}/g;
     
     
     let match;
