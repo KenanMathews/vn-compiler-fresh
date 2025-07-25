@@ -50,7 +50,7 @@ export class HTMLGenerator {
       const runtimeData = this.generateRuntimeData(options);
       
       const template = this.templateManager.getGameShellTemplate();
-      const html = this.assembleHTML(template, {
+      const html = await this.assembleHTML(template, {
         title: options.title,
         css: bundledCSS,
         runtimeData,
@@ -59,6 +59,7 @@ export class HTMLGenerator {
         gameData: options.gameData,
         customJS: options.customJS || '',
         dependencyManager: this.dependencyManager,
+        minify: options.minify,
       });
 
 
@@ -166,7 +167,7 @@ export class HTMLGenerator {
   /**
    * Assemble the final HTML document with client runtimes
    */
-  private assembleHTML(template: string, data: {
+  private async assembleHTML(template: string, data: {
     title: string;
     css: string;
     runtimeData: string;
@@ -175,7 +176,8 @@ export class HTMLGenerator {
     gameData: GameData;
     customJS?: string;
     dependencyManager: DependencyManager;
-  }): string {
+    minify: boolean;
+  }): Promise<string> {
     const title = data.title || data.gameData.metadata.title || 'VN Game';
     const dependencyScripts = this.generateDependencyScripts(data.dependencyManager);
     let html = template
@@ -188,8 +190,7 @@ export class HTMLGenerator {
       .replace('{{GENERATION_TIMESTAMP}}', new Date().toISOString())
       .replace('{{SCENE_COUNT}}', data.gameData.scenes.length.toString())
       .replace('{{DEPENDENCY_SCRIPTS}}', dependencyScripts.head)
-      .replace('{{RUNTIME_SCRIPTS}}', this.generateRuntimeScripts(data.clientRuntimes, data.customJS, data.gameData.components));
-
+      .replace('{{RUNTIME_SCRIPTS}}',  await this.generateRuntimeScripts(data.clientRuntimes, data.customJS, data.gameData.components, data.minify));
     for (const [placeholder, content] of Object.entries(data.clientRuntimes)) {
       this.logger.debug(`🔄 Replacing placeholder {{${placeholder}}} with ${content.length} chars`);
       html = html.replace(`{{${placeholder}}}`, content);
@@ -201,12 +202,8 @@ export class HTMLGenerator {
   /**
    * Generate runtime scripts for injection
    */
-  private generateRuntimeScripts(clientRuntimes: Record<string, string>, customJS?: string, componentData?: ComponentHelperConfig[], dependencyScripts?: string ): string {
+  private async generateRuntimeScripts(clientRuntimes: Record<string, string>, customJS?: string, componentData?: ComponentHelperConfig[], minify?: boolean): Promise<string> {
     const scripts: string[] = [];
-
-    if (dependencyScripts && dependencyScripts.trim()) {
-      scripts.push(dependencyScripts);
-    }
     const scriptOrder = [
       'UTILS_POLYFILLS_JS',
       'VENDOR_VN_ENGINE_LOADER_JS',
@@ -227,24 +224,44 @@ export class HTMLGenerator {
 
     for (const scriptKey of scriptOrder) {
       if (clientRuntimes[scriptKey]) {
-        scripts.push(`<script>\n${clientRuntimes[scriptKey]}\n</script>`);
+        const scriptContent = await this.generateMinifiedScript(clientRuntimes[scriptKey], minify);
+        scripts.push(`<script>\n${scriptContent}\n</script>`);
       }
     }
 
     // Add component JavaScript files
     const componentJS = this.getComponentJS(componentData || []);
     if (componentJS.trim()) {
-      scripts.push(`<script>\n// Component JavaScript\n${componentJS}\n</script>`);
+      const scriptContent = await this.generateMinifiedScript(componentJS, minify);
+      scripts.push(`<script>\n// Component JavaScript\n${scriptContent}\n</script>`);
       this.logger.verbose('🧩 Component JS bundled into runtime scripts');
     }
 
     // Add custom JavaScript if provided
     if (customJS && customJS.trim()) {
-      scripts.push(`<script>\n// Custom JavaScript\n${customJS}\n</script>`);
+      const scriptContent = await this.generateMinifiedScript(customJS, minify);
+      scripts.push(`<script>\n// Custom JavaScript\n${scriptContent}\n</script>`);
       this.logger.verbose('📄 Custom JS injected into runtime scripts');
     }
 
     return scripts.join('\n');
+  }
+
+  /**
+   *  Generate minified JS scripts if enabled
+   */
+
+  private async generateMinifiedScript(script: string, minify?: boolean): Promise<string> {
+    if (!minify) return script;
+    try {
+      this.logger.verbose(`🗜️ Minifying script`);
+      const minified = await minifyJS(script, { compress: true, mangle: true });
+      return minified.code ?? script;
+    } catch (error) {
+      const errorString = error instanceof Error ? error.message : String(error);
+      this.logger.warn(`⚠️ JS minification failed: ${errorString}`);
+      return script;
+    }
   }
 
   /**
