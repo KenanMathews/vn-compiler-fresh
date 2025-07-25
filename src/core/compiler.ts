@@ -126,7 +126,7 @@ export class VNCompiler {
       const assets = await this.processAssets(options.assetsDir);
       const yamlAssets = this.extractYAMLAssets(parsedScript);
       const allAssets = [...assets, ...yamlAssets];
-      const componentHelpers = this.extractComponentHelpers(scenes);
+      const componentHelpers = this.extractComponentHelpers(options.input,scenes);
       
       this.logger.info(`🎨 Processed ${assets.length} assets, ${yamlAssets.length} YAML assets,  ${componentHelpers.length} components`);
 
@@ -186,6 +186,7 @@ export class VNCompiler {
     const theme = this.templateManager.getTheme();
 
     return await this.htmlGenerator.generateBundle({
+      input: options.input,
       title: finalTitle,
       theme,
       assets: gameData.assets,
@@ -297,8 +298,9 @@ export class VNCompiler {
   /**
    * Extract component helpers from scenes
    */
-  private extractComponentHelpers(scenes: SceneData[]): ComponentHelperConfig[] {
+  private extractComponentHelpers(scriptPath: string, scenes: SceneData[]): ComponentHelperConfig[] {
     if (!this.componentSystem) return [];
+    this.componentSystem.initializeScriptFolder(scriptPath);
     return this.componentSystem.extractComponentHelpers(scenes);
   }
 

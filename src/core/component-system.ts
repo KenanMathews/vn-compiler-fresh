@@ -1,4 +1,5 @@
 import type { Logger } from "../types/compiler.ts";
+import { dirname } from "@std/path";
 
 /**
  * Component Helper Configuration
@@ -53,11 +54,19 @@ export class VNComponentHelperSystem {
   private mountedComponents: Map<string, VNComponent> = new Map();
   private loadedScripts: Map<string, any> = new Map();
   private componentMetadata: Map<string, ComponentMetadata> = new Map();
+  private scriptFolder: string = new URL('.', import.meta.url).pathname;
 
   constructor(
     private vnEngine: any,
-    private logger: Logger
+    private logger: Logger,
   ) {}
+
+  /**
+   * Initialize script folder path
+   */
+  initializeScriptFolder(scriptPath: string): void {
+    this.scriptFolder = dirname(scriptPath);
+  }
 
   /**
    * Extract component helpers from parsed scenes (mirrors input system)
@@ -404,26 +413,59 @@ export class VNComponentHelperSystem {
       return this.loadedScripts.get(scriptPath);
     }
     
-    try {
-      // Dynamic import for ES modules
-      const module = await import(scriptPath);
-      const ComponentClass = module.default || module;
-      
-      this.loadedScripts.set(scriptPath, ComponentClass);
-      
-      // Update metadata
-      for (const [, metadata] of this.componentMetadata) {
-        if (metadata.scriptPath === scriptPath) {
-          metadata.loaded = true;
-        }
+    // Try multiple resolution strategies
+    const possiblePaths = await this.resolveComponentPath(scriptPath);
+    
+    let lastError: Error | null = null;
+    for (const resolvedPath of possiblePaths) {
+      try {
+        const module = await import(resolvedPath);
+        const ComponentClass = module.default || module;
+        
+        this.loadedScripts.set(scriptPath, ComponentClass);
+        this.logger.debug(`✅ Loaded component from: ${resolvedPath}`);
+        return ComponentClass;
+      } catch (error) {
+        lastError = error as Error;
+        continue;
       }
-      
-      return ComponentClass;
-      
-    } catch (error) {
-      this.logger.error(`❌ Failed to load component script: ${scriptPath}`, error);
-      throw error;
     }
+    
+    throw new Error(`Failed to load component script: ${scriptPath}. Last error: ${lastError?.message}`);
+  }
+
+  private async resolveComponentPath(scriptPath: string): Promise<string[]> {
+    const paths: string[] = [];
+    
+    // 1. If already absolute, use as-is
+    if (scriptPath.startsWith('http://') || scriptPath.startsWith('https://') || scriptPath.startsWith('file://')) {
+      paths.push(scriptPath);
+      return paths;
+    }
+    
+    if (this.scriptFolder) {
+      const yamlRelative = new URL(scriptPath, `file://${this.scriptFolder}/`).href;
+      paths.push(yamlRelative);
+    }
+    
+    // 3. Resolve relative to executable location (your suggested approach)
+    try {
+      const execDir = dirname(Deno.execPath());
+      const execRelative = new URL(scriptPath, `file://${execDir}/`).href;
+      paths.push(execRelative);
+    } catch {
+      // Deno.execPath() might not be available in all contexts
+    }
+    
+    // 4. Resolve relative to current module (compiler location)
+    const moduleRelative = new URL(scriptPath, import.meta.url).href;
+    paths.push(moduleRelative);
+    
+    // 5. Fallback to CWD (current behavior)
+    const cwdRelative = new URL(scriptPath, `file://${Deno.cwd()}/`).href;
+    paths.push(cwdRelative);
+    
+    return paths;
   }
 
   /**

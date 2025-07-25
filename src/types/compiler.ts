@@ -79,6 +79,7 @@ export interface TemplateOverrides {
 import { DependencyConfig, YAMLDependencies } from './dependencies.ts';
 
 export interface BundleOptions {
+  input: string;
   title: string;
   customCSS?: string;
   customJS?: string;

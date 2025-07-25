@@ -12,6 +12,9 @@ import { ClientBuilder } from './client-builder.ts';
 import { minify as minifyHTML } from 'npm:html-minifier-terser@^7.2.0';
 import { minify as minifyJS } from 'npm:terser@^5.24.0';
 import CleanCSS from 'npm:clean-css@^5.3.2';
+import { dirname, resolve, isAbsolute } from "@std/path";
+
+
 
 /**
  * HTML Generator v1 - Modular Client Runtime Approach
@@ -20,6 +23,7 @@ import CleanCSS from 'npm:clean-css@^5.3.2';
 export class HTMLGenerator {
   private clientBuilder: ClientBuilder;
   private dependencyManager: DependencyManager;
+  private yamlFilePath: string | null = null;
 
   constructor(
     private templateManager: TemplateManager,
@@ -36,6 +40,7 @@ export class HTMLGenerator {
     this.logger.info('🏗️ Generating HTML bundle (v1 modular)...');
 
     try {
+      this.yamlFilePath = options.input;
       await this.processDependencies(options);
 
       const runtimes = clientRuntimes || await this.clientBuilder.getAllClientRuntimes();
@@ -366,19 +371,24 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
       if (component && component.cssPath && !processedPaths.has(component.cssPath)) {
         processedPaths.add(component.cssPath);
         
+        const resolvedPath = this.resolveComponentPath(component.cssPath);
+        if (!resolvedPath) {
+          this.logger.warn(`⚠️ Could not resolve CSS path for component: ${component.componentName} (${component.cssPath})`);
+          continue;
+        }
+        
         try {
-          // Try to read CSS file if it exists
-          const cssExists = Deno.statSync(component.cssPath).isFile;
+          const cssExists = Deno.statSync(resolvedPath).isFile;
           if (cssExists) {
-            const cssData = Deno.readTextFileSync(component.cssPath);
+            const cssData = Deno.readTextFileSync(resolvedPath);
             cssContent.push(`/* Component: ${component.componentName} (${component.cssPath}) */`);
+            cssContent.push(`/* Resolved from: ${resolvedPath} */`);
             cssContent.push(cssData);
-            this.logger.debug(`✅ Loaded CSS for component: ${component.componentName}`);
+            this.logger.debug(`✅ Loaded CSS for component: ${component.componentName} from ${resolvedPath}`);
           }
         } catch (error) {
-          // CSS file doesn't exist or can't be read
           const errorString = error instanceof Error ? error.message : String(error);
-          this.logger.warn(`⚠️ Could not load CSS file for component: ${component.componentName} (${component.cssPath}) - ${errorString}`);
+          this.logger.warn(`⚠️ Could not load CSS file for component: ${component.componentName} (${resolvedPath}) - ${errorString}`);
         }
       }
     }
@@ -394,32 +404,86 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
       if (component && component.scriptPath && !processedPaths.has(component.scriptPath)) {
         processedPaths.add(component.scriptPath);
         
+        const resolvedPath = this.resolveComponentPath(component.scriptPath);
+        if (!resolvedPath) {
+          this.logger.warn(`⚠️ Could not resolve JS path for component: ${component.componentName} (${component.scriptPath})`);
+          continue;
+        }
+        
         try {
-          // Try to read JavaScript file if it exists
-          const jsExists = Deno.statSync(component.scriptPath).isFile;
+          const jsExists = Deno.statSync(resolvedPath).isFile;
           if (jsExists) {
-            let jsData = Deno.readTextFileSync(component.scriptPath);
+            let jsData = Deno.readTextFileSync(resolvedPath);
             
             // Strip ES6 export statements for browser compatibility
             jsData = jsData
-              .replace(/^export\s+default\s+\w+;?\s*$/gm, '') // Remove 'export default ClassName;'
-              .replace(/^export\s*\{[^}]*\}\s*;?\s*$/gm, '') // Remove 'export { ... };'
-              .replace(/^export\s+\w+\s+/gm, '') // Remove 'export class/function/const '
+              .replace(/^export\s+default\s+\w+;?\s*$/gm, '')
+              .replace(/^export\s*\{[^}]*\}\s*;?\s*$/gm, '')
+              .replace(/^export\s+\w+\s+/gm, '')
               .trim();
             
-            jsContent.push(`/* Component: ${component.componentName} (${component.scriptPath}) */`);
             jsContent.push(jsData);
-            this.logger.debug(`✅ Loaded JS for component: ${component.componentName} (stripped exports)`);
+            this.logger.debug(`✅ Loaded JS for component: ${component.componentName} from ${resolvedPath}`);
           }
         } catch (error) {
-          // JavaScript file doesn't exist or can't be read
           const errorString = error instanceof Error ? error.message : String(error);
-          this.logger.warn(`⚠️ Could not load JS file for component: ${component.componentName} (${component.scriptPath}) - ${errorString}`);
+          this.logger.warn(`⚠️ Could not load JS file for component: ${component.componentName} (${resolvedPath}) - ${errorString}`);
         }
       }
     }
     
     return jsContent.join('\n\n');
+  }
+  private resolveComponentPath(componentPath: string): string | null {
+    let startegy = null;
+    if (isAbsolute(componentPath)) {
+      return componentPath;
+    }
+    const strategies = [
+      () => {
+        this.logger.debug(`Yaml file path: ${this.yamlFilePath}`);
+        if (this.yamlFilePath) {
+          const yamlDir = dirname(this.yamlFilePath);
+          return resolve(yamlDir, componentPath);
+        }
+        return null;
+      },
+      
+      () => {
+        try {
+          const execDir = dirname(Deno.execPath());
+          return resolve(execDir, componentPath);
+        } catch {
+          return null;
+        }
+      },
+      
+      () => resolve(Deno.cwd(), componentPath)
+    ];
+
+    for (const strategy of strategies) {
+      this.logger.debug(`🔄 Trying resolution strategy for: ${componentPath}`);
+      const resolvedPath = strategy();
+      if (resolvedPath) {
+        try {
+          const stat = Deno.statSync(resolvedPath);
+          if (stat.isFile) {
+            return resolvedPath;
+          }
+        } catch {
+          continue;
+        }
+      }
+    }
+
+    this.logger.debug(`❌ All resolution strategies failed for: ${componentPath}`);
+    if (this.yamlFilePath) {
+      this.logger.debug(`   YAML file: ${this.yamlFilePath}`);
+      this.logger.debug(`   YAML dir: ${dirname(this.yamlFilePath)}`);
+    }
+    this.logger.debug(`   CWD: ${Deno.cwd()}`);
+    
+    return null;
   }
 
   private async processDependencies(options: BundleOptions): Promise<void> {
