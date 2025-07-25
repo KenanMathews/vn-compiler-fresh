@@ -133,20 +133,17 @@ export class VNComponentHelperSystem {
     
     const createRegex = /\{\{component\s+["']create["']\s+["']([^"']+)["']\s+["']([^"']+)["']\s+["']([^"']+)["']\s+["']([^"']+)["']\s+["']([^"']*?)["']\s*\}\}/g;
     
-    
     let match;
     while ((match = createRegex.exec(text)) !== null) {
       const [, componentName, scriptPath, cssPath, instanceId, configStr] = match;
       
-      // Parse configuration
       const config = this.parseComponentParams(configStr || '');
       
-      // Detect CSS path if not provided
-      let finalCssPath: string | undefined = cssPath;
-      if (!cssPath || cssPath === 'null' || cssPath === '') {
-        finalCssPath = this.detectCSSPath(scriptPath);
-      }
+      let finalCssPath: string | undefined;
       
+      if (cssPath && cssPath !== 'null' && cssPath !== '' && cssPath !== 'none') {
+        finalCssPath = this.detectCSSPath(cssPath.trim());
+      } 
       const helper: ComponentHelperConfig = {
         id: this.generateComponentId(componentName, sceneId),
         componentName: componentName.trim(),
@@ -160,8 +157,6 @@ export class VNComponentHelperSystem {
       
       helpers.push(helper);
       this.components.set(helper.id, helper);
-      
-      // Update metadata
       this.updateComponentMetadata(helper);
     }
     
