@@ -91,12 +91,6 @@ export class HTMLGenerator {
     cssComponents.push('/* Theme Variables */');
     cssComponents.push(this.templateManager.getThemeVariablesCSS());
 
-    const dependencyScripts = this.generateDependencyScripts(this.dependencyManager);
-    if (dependencyScripts.css && dependencyScripts.css.trim()) {
-      cssComponents.push('/* Dependency CSS */');
-      cssComponents.push(dependencyScripts.css);
-    }
-
     // Add base structural CSS
     cssComponents.push('/* Base CSS */');
     cssComponents.push(this.getBaseCSS());
@@ -517,14 +511,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
       this.dependencyManager.addDependencies(options.dependencies);
     }
 
-    // Bundle dependencies if requested
-    if (options.bundleDependencies) {
-      await this.dependencyManager.bundleDependencies(options.minify);
-    }
-
     const stats = this.dependencyManager.getStats();
     if (stats.total > 0) {
-      this.logger.info(`📦 Processed ${stats.total} dependencies (${stats.bundled} bundled, ${stats.cdn} CDN)`);
+      this.logger.info(`📦 Processed ${stats.total} dependencies  ${stats.cdn} CDN)`);
     }
   }
 
@@ -535,17 +524,12 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
     if (stats.total > 0) {
       this.logger.info('📊 Dependency Statistics:');
       this.logger.info(`   Total: ${stats.total} dependencies`);
-      this.logger.info(`   CDN: ${stats.cdn}, Bundled: ${stats.bundled}, Inline: ${stats.inline}`);
-      if (stats.totalBundledSize > 0) {
-        this.logger.info(`   Bundled size: ${this.formatSize(stats.totalBundledSize)}`);
-      }
     }
   }
 
-  private generateDependencyScripts(dependencyManager: DependencyManager): { head: string; body: string ; css: string } {
+  private generateDependencyScripts(dependencyManager: DependencyManager): { head: string; body: string } {
     const head: string[] = [];
     const body: string[] = [];
-    let dependencyCSS = '';
 
     // Add CDN scripts to head
     const cdnScripts = dependencyManager.generateCDNScripts();
@@ -554,28 +538,17 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
       head.push(cdnScripts);
     }
 
-    // Add bundled scripts to body (before runtime)
-    const bundledContent = dependencyManager.generateBundledScripts();
-    if (bundledContent.js && bundledContent.js.trim()) {
-      body.push('<!-- Bundled Dependencies (JS) -->');
-      body.push(`<script>\n${bundledContent.js}\n</script>`);
-    }
-
-    if (bundledContent.css && bundledContent.css.trim()) {
-      dependencyCSS = bundledContent.css;
-    }
-
     // Add inline scripts to body
     const inlineScripts = dependencyManager.generateInlineScripts();
+    this.logger.verbose(`📜 Generated ${inlineScripts.length} chars of inline scripts`);
     if (inlineScripts.trim()) {
-      body.push('<!-- Inline Dependencies -->');
-      body.push(`<script>\n${inlineScripts}\n</script>`);
+      head.push('<!-- Inline Dependencies -->');
+      head.push(`<script>\n${inlineScripts}\n</script>`);
     }
 
     return {
       head: head.join('\n'),
       body: body.join('\n'),
-      css: dependencyCSS
     };
   }
 }

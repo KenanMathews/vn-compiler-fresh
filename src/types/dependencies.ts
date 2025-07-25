@@ -37,10 +37,8 @@ export interface BundledDependency {
 
 export interface DependencyStats {
   total: number;
-  bundled: number;
   cdn: number;
   inline: number;
-  presets: number;
   totalBundledSize: number;
   cdnCached: number;
 }
