@@ -139,16 +139,11 @@ export class VNComponentHelperSystem {
       
       const config = this.parseComponentParams(configStr || '');
       
-      let finalCssPath: string | undefined;
-      
-      if (cssPath && cssPath !== 'null' && cssPath !== '' && cssPath !== 'none') {
-        finalCssPath = this.detectCSSPath(cssPath.trim());
-      } 
       const helper: ComponentHelperConfig = {
         id: this.generateComponentId(componentName, sceneId),
         componentName: componentName.trim(),
         scriptPath: scriptPath.trim(),
-        cssPath: finalCssPath,
+        cssPath: cssPath.trim(),
         instanceId: instanceId.trim(),
         config,
         sceneId,
@@ -161,38 +156,6 @@ export class VNComponentHelperSystem {
     }
     
     return helpers;
-  }
-
-  /**
-   * Detect CSS path for a component script path
-   */
-  private detectCSSPath(scriptPath: string): string | undefined {
-    if (!scriptPath || !scriptPath.includes('.')) {
-      return undefined;
-    }
-    
-    const basePath = scriptPath.replace(/\.[^.]*$/, ''); // Remove extension
-    const possiblePaths = [
-      `${basePath}-styles.css`,
-      `${basePath}.css`,
-      `${basePath}-style.css`
-    ];
-    
-    // Check if any of these files exist
-    for (const path of possiblePaths) {
-      try {
-        const stat = Deno.statSync(path);
-        if (stat.isFile) {
-          this.logger.debug(`✅ Auto-detected CSS for component: ${path}`);
-          return path;
-        }
-      } catch {
-        // File doesn't exist, continue to next option
-      }
-    }
-    
-    this.logger.debug(`⚠️ No CSS file auto-detected for: ${scriptPath}`);
-    return undefined;
   }
 
   /**
