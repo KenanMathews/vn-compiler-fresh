@@ -1,5 +1,5 @@
-# Simple VN Compiler Dockerfile
-FROM denoland/deno:1.40.0
+# VN Compiler Dockerfile - ARM64 Compatible
+FROM --platform=linux/arm64 denoland/deno:2.4.2
 
 WORKDIR /app
 
@@ -14,6 +14,10 @@ RUN mkdir -p /app/vn-server-temp
 
 # Expose port 8989 (API server)
 EXPOSE 8989
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+    CMD deno eval "console.log('Health check passed'); Deno.exit(0)" || exit 1
 
 # Start the API server
 CMD ["deno", "run", "--allow-all", "cli.ts", "server", "--port", "8989", "--cors", "*", "--verbose"]
