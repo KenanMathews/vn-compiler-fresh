@@ -1,0 +1,7 @@
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+
+# Deployment logs
+*.deploy.log
