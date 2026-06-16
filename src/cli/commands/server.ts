@@ -2,7 +2,7 @@
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { VNCompiler } from "../../core/compiler.ts";
 import type { CLIArgs, CompileOptions, Logger } from "../../types/compiler.ts";
-import { join, dirname } from "@std/path";
+import { join, dirname, resolve } from "@std/path";
 import { ensureDir } from "@std/fs";
 
 /**
@@ -758,10 +758,19 @@ class CompilationSession {
   }
 
   async addAsset(filename: string, data: Uint8Array): Promise<void> {
-    this.assets.set(filename, data);
-
     const normalizedFilename = filename.replace(/\\/g, "/"); // Normalize path separators
-    const assetPath = join(this.sessionDir, normalizedFilename);
+
+    // Containment check: the resolved path MUST stay inside this session's
+    // directory. Without this, a filename like "../../../../etc/cron.d/x" or an
+    // absolute path escapes the session dir and writes anywhere the process can
+    // (arbitrary file write -> remote code execution).
+    const baseDir = resolve(this.sessionDir);
+    const assetPath = resolve(baseDir, normalizedFilename);
+    if (assetPath !== baseDir && !assetPath.startsWith(baseDir + "/")) {
+      throw new Error(`Invalid asset filename (path traversal): ${filename}`);
+    }
+
+    this.assets.set(filename, data);
 
     await ensureDir(dirname(assetPath));
     await Deno.writeFile(assetPath, data);

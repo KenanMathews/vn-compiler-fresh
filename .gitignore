@@ -5,3 +5,6 @@ docker-compose.override.yml
 
 # Deployment logs
 *.deploy.log
+
+# Runtime session working directory (created by the API server at runtime)
+vn-server-temp/
